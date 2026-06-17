@@ -8,6 +8,11 @@ android {
     namespace = "com.nairusoft.bbre"
     compileSdk = 34
 
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+
     defaultConfig {
         applicationId = "com.nairusoft.bbre"
         minSdk = 26

@@ -3,6 +3,7 @@ package com.nairusoft.bbre.security
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.nio.charset.StandardCharsets
@@ -66,10 +67,11 @@ class SecurityManager(private val context: Context) {
      * Check if device supports biometric authentication
      */
     fun isBiometricAvailable(): Boolean {
-        return android.hardware.biometrics.BiometricManager.from(context)
-            .canAuthenticate(android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
-                android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
+        val biometricManager = BiometricManager.from(context)
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.BIOMETRIC_WEAK
+        
+        return biometricManager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
     /**
@@ -110,7 +112,7 @@ class SecurityManager(private val context: Context) {
      */
     fun getSecretKey(alias: String): SecretKey? {
         return try {
-            keyStore.getEntry(alias, null) as? javax.security.auth.Destroyable.SecretKey
+            keyStore.getKey(alias, null) as? SecretKey
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -232,7 +234,7 @@ class SecurityManager(private val context: Context) {
         return if (issues.isEmpty()) {
             SecurityStatus.SECURE
         } else {
-            SecurityStatus.WARNAING(issues)
+            SecurityStatus.WARNING(issues)
         }
     }
 
@@ -270,7 +272,7 @@ class SecurityManager(private val context: Context) {
  */
 sealed class SecurityStatus {
     object SECURE : SecurityStatus()
-    data class WARNIGN(val issues: List<String>) : SecurityStatus()
+    data class WARNING(val issues: List<String>) : SecurityStatus()
 }
 
 /**
