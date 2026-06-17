@@ -2,7 +2,6 @@
 <androidx.constraintlayout.widget.ConstraintLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_primary"
@@ -20,12 +19,12 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="24dp" />
     
-    <!-- Welcome Text -->
+    <!-- Title -->
     <TextView
-        android:id="@+id/tvWelcome"
+        android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/login_title"
+        android:text="@string/register_title"
         android:textColor="@color/bbre_primary"
         android:textSize="28sp"
         android:textStyle="bold"
@@ -39,10 +38,10 @@
         android:id="@+id/tvSubtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/login_subtitle"
+        android:text="@string/register_subtitle"
         android:textColor="@color/gray"
         android:textSize="16sp"
-        app:layout_constraintTop_toBottomOf="@id/tvWelcome"
+        app:layout_constraintTop_toBottomOf="@id/tvTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="8dp" />
@@ -53,7 +52,7 @@
         style="@style/Widget.BBreApp.TextInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="@string/login_username_hint"
+        android:hint="@string/register_username_hint"
         app:startIconDrawable="@drawable/ic_call"
         app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
         app:layout_constraintStart_toStartOf="parent"
@@ -75,7 +74,7 @@
         style="@style/Widget.BBreApp.TextInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="@string/login_password_hint"
+        android:hint="@string/register_password_hint"
         app:startIconDrawable="@drawable/ic_lock"
         app:endIconMode="password_toggle"
         app:layout_constraintTop_toBottomOf="@id/tilUsername"
@@ -93,97 +92,75 @@
     
     </com.google.android.material.textfield.TextInputLayout>
     
-    <!-- Login Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnLogin"
-        style="@style/Widget.BBreApp.Button.Primary"
+    <!-- Confirm Password Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilConfirmPassword"
+        style="@style/Widget.BBreApp.TextInputLayout"
         android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:text="@string/login_button"
-        android:textSize="16sp"
-        app:cornerRadius="12dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/register_confirm_password_hint"
+        app:startIconDrawable="@drawable/ic_lock"
+        app:endIconMode="password_toggle"
         app:layout_constraintTop_toBottomOf="@id/tilPassword"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="16dp">
     
-    <!-- Divider -->
-    <View
-        android:id="@+id/divider"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etConfirmPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:maxLength="8"
+            android:maxLines="1" />
+    
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <!-- Register Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnRegister"
+        style="@style/Widget.BBreApp.Button.Primary"
         android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="@color/gray_light"
-        app:layout_constraintTop_toBottomOf="@id/btnLogin"
+        android:layout_height="56dp"
+        android:text="@string/register_button"
+        android:textSize="16sp"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/tilConfirmPassword"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="32dp" />
     
-    <!-- Register Section -->
+    <!-- Login Link -->
     <LinearLayout
-        android:id="@+id/llRegister"
+        android:id="@+id/llLogin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/divider"
+        app:layout_constraintTop_toBottomOf="@id/btnRegister"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="24dp">
     
         <TextView
-            android:id="@+id/tvNoAccount"
+            android:id="@+id/tvHaveAccount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/login_no_account"
+            android:text="@string/register_have_account"
             android:textColor="@color/gray"
             android:textSize="14sp" />
     
         <TextView
-            android:id="@+id/tvRegister"
+            android:id="@+id/tvLogin"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/login_register"
+            android:text="@string/register_login"
             android:textColor="@color/bbre_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             android:clickable="true"
             android:focusable="true"
             android:layout_marginStart="8dp" />
-    
-    </LinearLayout>
-    
-    <!-- Biometric Section -->
-    <LinearLayout
-        android:id="@+id/llBiometric"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/llRegister"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp">
-    
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnBiometric"
-            style="@style/Widget.BBreApp.Button.Secondary"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:text="@string/login_biometric"
-            android:textSize="14sp"
-            app:icon="@drawable/ic_fingerprint"
-            app:iconGravity="textStart"
-            app:cornerRadius="24dp" />
-    
-        <TextView
-            android:id="@+id/tvBiometricHint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/security_biometric_subtitle"
-            android:textColor="@color/gray"
-            android:textSize="12sp"
-            android:layout_marginTop="8dp"
-            android:visibility="visible" />
     
     </LinearLayout>
     

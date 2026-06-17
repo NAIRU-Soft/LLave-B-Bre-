@@ -1,32 +1,21 @@
 package com.nairusoft.bbre.security
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import java.nio.charset.StandardCharsets
 import java.security.KeyStore
-import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.IvParameterSpec
-import kotlin.concurrent.thread
 
 /**
- * SecurityManager - Central security component for BBre
- * Handles encryption, decryption, biometric authentication, and secure storage
+ * SecurityManager - Handles biometric authentication and secure data storage
  */
-class SecurityManager(private val context: Context) {
-
+class SecurityManager private constructor(private val context: Context) {
+    
     companion object {
-        private const val ANDROID_KEYSTORE = "AndroidKeyStore"
-        private const val TRANSFORMATION_AES = "AES/GCM/NoPadding"
-        private const val GCM_IV_LENGTH = 12
-        private const val GCM_TAG_LENGTH = 128
         private const val PREF_NAME = "bbre_secure_prefs"
         
         @Volatile
@@ -40,21 +29,15 @@ class SecurityManager(private val context: Context) {
             }
         }
     }
-
-    private val keyStore: KeyStore
-    private val encryptedPrefs: EncryptedSharedPreferences
-    private val masterKey: MasterKey
-
-    init {
-        keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
-            load(null)
-        }
-        
-        masterKey = MasterKey.Builder(context)
+    
+    private val masterKey: MasterKey by lazy {
+        MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        
-        encryptedPrefs = EncryptedSharedPreferences.create(
+    }
+    
+    private val encryptedPrefs: EncryptedSharedPreferences by lazy {
+        EncryptedSharedPreferences.create(
             context,
             PREF_NAME,
             masterKey,
@@ -62,224 +45,87 @@ class SecurityManager(private val context: Context) {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         ) as EncryptedSharedPreferences
     }
-
+    
+    private val keyStore: KeyStore by lazy {
+        KeyStore.getInstance("AndroidKeyStore").apply {
+            load(null)
+        }
+    }
+    
     /**
-     * Check if device supports biometric authentication
+     * Check if biometric authentication is available
      */
     fun isBiometricAvailable(): Boolean {
         val biometricManager = BiometricManager.from(context)
-        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-        
-        return biometricManager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+        return when (biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.BIOMETRIC_WEAK
+        )) {
+            BiometricManager.BIOMETRIC_SUCCESS -> true
+            else -> false
+        }
     }
-
+    
     /**
-     * Generate a secure key in Android Keystore with biometric requirement
+     * Generate a biometric key for authentication
      */
-    fun generateBiometricKey(alias: String): SecretKey? {
-        return try {
-            if (keyStore.containsAlias(alias)) {
-                keyStore.deleteEntry(alias)
+    suspend fun generateBiometricKey(alias: String) {
+        try {
+            if (!keyStore.containsAlias(alias)) {
+                val keyGenerator = KeyGenerator.getInstance(
+                    "AES", "AndroidKeyStore"
+                )
+                keyGenerator.init(
+                    android.security.keystore.KeyGenParameterSpec.Builder(
+                        alias,
+                        android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or
+                        android.security.keystore.KeyProperties.PURPOSE_DECRYPT
+                    )
+                        .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_CBC)
+                        .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_PKCS7)
+                        .setUserAuthenticationRequired(true)
+                        .build()
+                )
+                keyGenerator.generateKey()
             }
-
-            val keyGenerator = KeyGenerator.getInstance(
-                KeyProperties.KEY_ALGORITHM_AES,
-                ANDROID_KEYSTORE
-            )
-
-            val keyGenParameterSpec = KeyGenParameterSpec.Builder(
-                alias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .setUserAuthenticationRequired(true)
-                .setInvalidatedByBiometricEnrollment(true)
-                .build()
-
-            keyGenerator.init(keyGenParameterSpec)
-            keyGenerator.generateKey()
         } catch (e: Exception) {
             e.printStackTrace()
-            null
         }
     }
-
+    
     /**
-     * Get secret key from keystore
+     * Get cipher for biometric authentication
      */
-    fun getSecretKey(alias: String): SecretKey? {
+    fun getBiometricCipher(alias: String): Cipher? {
         return try {
-            keyStore.getKey(alias, null) as? SecretKey
+            val key = keyStore.getKey(alias, null) as SecretKey
+            Cipher.getInstance("AES/CBC/PKCS7Padding").apply {
+                init(Cipher.ENCRYPT_MODE, key)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
-
+    
     /**
-     * Encrypt data using AES-GCM
-     */
-    fun encrypt(data: String, alias: String): ByteArray? {
-        return try {
-            val key = getSecretKey(alias) ?: return null
-            val cipher = Cipher.getInstance(TRANSFORMATION_AES)
-            cipher.init(Cipher.ENCRYPT_MODE, key)
-            
-            val iv = cipher.iv
-            val encryptedData = cipher.doFinal(data.toByteArray(StandardCharsets.UTF_8))
-            
-            // Combine IV and encrypted data
-            iv + encryptedData
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    /**
-     * Decrypt data using AES-GCM
-     */
-    fun decrypt(encryptedData: ByteArray, alias: String): String? {
-        return try {
-            val key = getSecretKey(alias) ?: return null
-            
-            // Extract IV and encrypted data
-            val iv = encryptedData.copyOfRange(0, GCM_IV_LENGTH)
-            val actualData = encryptedData.copyOfRange(GCM_IV_LENGTH, encryptedData.size)
-            
-            val cipher = Cipher.getInstance(TRANSFORMATION_AES)
-            val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)
-            cipher.init(Cipher.DECRYPT_MODE, key, spec)
-            
-            val decryptedData = cipher.doFinal(actualData)
-            String(decryptedData, StandardCharsets.UTF_8)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    /**
-     * Store sensitive data securely
+     * Store secure data in encrypted preferences
      */
     fun storeSecureData(key: String, value: String) {
         encryptedPrefs.edit().putString(key, value).apply()
     }
-
+    
     /**
-     * Retrieve sensitive data securely
+     * Retrieve secure data from encrypted preferences
      */
-    fun getSecureData(key: String, defaultValue: String = ""): String {
+    fun getSecureData(key: String, defaultValue: String): String {
         return encryptedPrefs.getString(key, defaultValue) ?: defaultValue
     }
-
+    
     /**
-     * Remove sensitive data
+     * Clear secure data
      */
-    fun removeSecureData(key: String) {
+    fun clearSecureData(key: String) {
         encryptedPrefs.edit().remove(key).apply()
     }
-
-    /**
-     * Clear all secure data
-     */
-    fun clearAllSecureData() {
-        encryptedPrefs.edit().clear().apply()
-    }
-
-    /**
-     * Hash data using SHA-256
-     */
-    fun hashData(data: String): String {
-        return try {
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(data.toByteArray(StandardCharsets.UTF_8))
-            digest.joinToString("") { "%02x".format(it) }
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    /**
-     * Verify if PIN is valid (hashed comparison)
-     */
-    fun verifyPin(storedHash: String, inputPin: String): Boolean {
-        return storedHash == hashData(inputPin)
-    }
-
-    /**
-     * Check if app is running in debug mode (security risk)
-     */
-    fun isDebugMode(): Boolean {
-        return context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-    }
-
-    /**
-     * Perform security check before sensitive operations
-     */
-    fun performSecurityCheck(): SecurityStatus {
-        val issues = mutableListOf<String>()
-        
-        if (isDebugMode()) {
-            issues.add("App running in debug mode")
-        }
-        
-        if (!isBiometricAvailable()) {
-            issues.add("Biometric authentication not available")
-        }
-        
-        return if (issues.isEmpty()) {
-            SecurityStatus.SECURE
-        } else {
-            SecurityStatus.WARNING(issues)
-        }
-    }
-
-    /**
-     * Validate transfer amount against BBre limits
-     */
-    fun validateTransferAmount(amount: Long): TransferValidationResult {
-        val maxAmount = 12_110_000L // BBre limit in COP
-        
-        return when {
-            amount <= 0 -> TransferValidationResult.INVALID_AMOUNT
-            amount > maxAmount -> TransferValidationResult.EXCEEDS_LIMIT(maxAmount)
-            else -> TransferValidationResult.VALID
-        }
-    }
-
-    /**
-     * Securely wipe sensitive data from memory
-     */
-    fun secureWipe(sensitiveData: CharArray) {
-        thread {
-            try {
-                for (i in sensitiveData.indices) {
-                    sensitiveData[i] = '\u0000'
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-}
-
-/**
- * Security status enum
- */
-sealed class SecurityStatus {
-    object SECURE : SecurityStatus()
-    data class WARNING(val issues: List<String>) : SecurityStatus()
-}
-
-/**
- * Transfer validation result
- */
-sealed class TransferValidationResult {
-    object VALID : TransferValidationResult()
-    object INVALID_AMOUNT : TransferValidationResult()
-    data class EXCEEDS_LIMIT(val maxAmount: Long) : TransferValidationResult()
 }

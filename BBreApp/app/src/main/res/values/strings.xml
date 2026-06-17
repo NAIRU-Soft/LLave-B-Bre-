@@ -10,62 +10,79 @@
     
     <!-- Login -->
     <string name="login_title">Bienvenido a BBre</string>
-    <string name="login_subtitle">Ingresa con tu llave</string>
-    <string name="login_phone_hint">Número de celular</string>
-    <string name="login_email_hint">Correo electrónico</string>
-    <string name="login_id_hint">Cédula de ciudadanía</string>
-    <string name="login_pin_hint">PIN de seguridad</string>
+    <string name="login_subtitle">Ingresa con tu usuario</string>
+    <string name="login_username_hint">Nombre de usuario</string>
+    <string name="login_password_hint">Contraseña (8 caracteres)</string>
     <string name="login_biometric">Usar huella digital</string>
     <string name="login_button">Ingresar</string>
-    <string name="login_forgot_pin">¿Olvidaste tu PIN?</string>
+    <string name="login_no_account">¿No tienes cuenta?</string>
+    <string name="login_register">Registrarse</string>
+    
+    <!-- Register -->
+    <string name="register_title">Crear Cuenta</string>
+    <string name="register_subtitle">Registro sencillo</string>
+    <string name="register_username_hint">Nombre de usuario</string>
+    <string name="register_password_hint">Contraseña (8 caracteres)</string>
+    <string name="register_confirm_password_hint">Confirmar contraseña</string>
+    <string name="register_button">Registrar</string>
+    <string name="register_have_account">¿Ya tienes cuenta?</string>
+    <string name="register_login">Iniciar Sesión</string>
     
     <!-- Dashboard -->
-    <string name="dashboard_balance">Saldo disponible</string>
-    <string name="dashboard_transfer">Transferir</string>
-    <string name="dashboard_qr">Escanear QR</string>
-    <string name="dashboard_history">Historial</string>
+    <string name="dashboard_my_keys">Mis Llaves</string>
     <string name="dashboard_settings">Configuración</string>
     
-    <!-- Transfer -->
-    <string name="transfer_title">Nueva Transferencia</string>
-    <string name="transfer_amount">Monto (COP)</string>
-    <string name="transfer_recipient">Destinatario</string>
-    <string name="transfer_key_type">Tipo de llave</string>
-    <string name="transfer_button">Enviar dinero</string>
-    <string name="transfer_limit">Límite: $12.110.000 por transacción</string>
-    <string name="transfer_success">¡Transferencia exitosa!</string>
+    <!-- My Keys -->
+    <string name="my_keys_title">Mis Llaves</string>
+    <string name="my_keys_create">Crear Llave</string>
+    <string name="my_keys_empty">No tienes llaves registradas</string>
+    <string name="my_keys_type">Tipo:</string>
+    <string name="my_keys_value">Valor:</string>
     
-    <!-- QR Scanner -->
-    <string name="qr_title">Escanear Código QR</string>
-    <string name="qr_instructions">Apunta la cámara al código QR</string>
-    <string name="qr_permission_required">Permiso de cámara requerido</string>
+    <!-- Create/Edit Key -->
+    <string name="key_create_title">Crear Nueva Llave</string>
+    <string name="key_edit_title">Editar Llave</string>
+    <string name="key_type_label">Tipo de Llave</string>
+    <string name="key_value_label">Valor de la Llave</string>
+    <string name="key_type_bank">Banco</string>
+    <string name="key_type_id">Cédula</string>
+    <string name="key_type_phone">Celular</string>
+    <string name="key_type_email">Correo</string>
+    <string name="key_type_random">Código Aleatorio</string>
+    <string name="key_save">Guardar</string>
+    <string name="key_delete">Eliminar</string>
+    <string name="key_cancel">Cancelar</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Configuración</string>
+    <string name="settings_profile">Administrar Perfil</string>
+    <string name="settings_change_username">Cambiar nombre de usuario</string>
+    <string name="settings_change_password">Cambiar contraseña</string>
+    <string name="settings_delete_user">Eliminar usuario</string>
+    <string name="settings_logout">Cerrar Sesión</string>
     
     <!-- Security -->
     <string name="security_biometric_title">Autenticación Biométrica</string>
     <string name="security_biometric_subtitle">Usa tu huella para acceder</string>
-    <string name="security_pin_required">PIN requerido</string>
+    <string name="security_password_required">Contraseña requerida</string>
     <string name="security_face_id">Usar reconocimiento facial</string>
     <string name="security_fingerprint">Usar huella digital</string>
     
     <!-- Messages -->
     <string name="error_network">Error de conexión. Verifica tu internet.</string>
-    <string name="error_invalid_key">Llave inválida</string>
-    <string name="error_insufficient_funds">Fondos insuficientes</string>
-    <string name="error_limit_exceeded">Superaste el límite de transferencia</string>
-    <string name="success_registration">Llave registrada exitosamente</string>
-    
-    <!-- Keys Types -->
-    <string name="key_type_phone">Celular</string>
-    <string name="key_type_email">Correo</string>
-    <string name="key_type_id">Cédula</string>
-    <string name="key_type_random">Código Aleatorio</string>
-    
-    <!-- Menu -->
-    <string name="menu_register_key">Registrar Llave</string>
-    <string name="menu_my_keys">Mis Llaves</string>
-    <string name="menu_logout">Cerrar Sesión</string>
-    <string name="menu_help">Ayuda</string>
-    <string name="menu_about">Acerca de</string>
+    <string name="error_invalid_credentials">Usuario o contraseña inválidos</string>
+    <string name="error_password_length">La contraseña debe tener 8 caracteres</string>
+    <string name="error_passwords_match">Las contraseñas no coinciden</string>
+    <string name="error_username_exists">El usuario ya existe</string>
+    <string name="error_key_exists">Esta llave ya está registrada</string>
+    <string name="success_registration">Usuario registrado exitosamente</string>
+    <string name="success_login">¡Bienvenido!</string>
+    <string name="success_key_created">Llave creada exitosamente</string>
+    <string name="success_key_updated">Llave actualizada exitosamente</string>
+    <string name="success_key_deleted">Llave eliminada exitosamente</string>
+    <string name="success_profile_updated">Perfil actualizado exitosamente</string>
+    <string name="confirm_delete_user">¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.</string>
+    <string name="confirm_delete_key">¿Estás seguro de eliminar esta llave?</string>
     
     <!-- About -->
     <string name="about_description">BBre es el nuevo sistema de pagos inmediatos en Colombia, desarrollado por el Banco de la República. Permite enviar y recibir dinero al instante, todos los días y a cualquier hora, sin importar el banco y de forma gratuita.</string>

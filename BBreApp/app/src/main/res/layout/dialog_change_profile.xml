@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_profile"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/bbre_primary" />
+    
+    <!-- New Username Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilNewUsername"
+        style="@style/Widget.BBreApp.TextInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/settings_change_username"
+        android:layout_marginTop="16dp">
+    
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etNewUsername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1" />
+    
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <!-- New Password Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilNewPassword"
+        style="@style/Widget.BBreApp.TextInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/settings_change_password"
+        app:endIconMode="password_toggle"
+        android:layout_marginTop="16dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etNewPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:maxLength="8"
+            android:maxLines="1" />
+    
+    </com.google.android.material.textfield.TextInputLayout>
+    
+</LinearLayout>

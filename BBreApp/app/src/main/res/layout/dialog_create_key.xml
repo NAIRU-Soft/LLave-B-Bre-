@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/key_create_title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/bbre_primary" />
+    
+    <!-- Key Type Spinner -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilKeyType"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/key_type_label"
+        android:layout_marginTop="16dp">
+    
+        <AutoCompleteTextView
+            android:id="@+id/actvKeyType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <!-- Key Value Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilKeyValue"
+        style="@style/Widget.BBreApp.TextInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/key_value_label"
+        android:layout_marginTop="16dp">
+    
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etKeyValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1" />
+    
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <!-- Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_marginTop="24dp">
+    
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            style="@style/Widget.BBreApp.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/key_cancel"
+            android:layout_marginEnd="8dp" />
+    
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSave"
+            style="@style/Widget.BBreApp.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/key_save" />
+    
+    </LinearLayout>
+    
+</LinearLayout>
