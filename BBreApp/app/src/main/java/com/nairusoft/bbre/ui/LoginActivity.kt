@@ -1,5 +1,6 @@
 package com.nairusoft.bbre.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -10,15 +11,17 @@ import androidx.lifecycle.lifecycleScope
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.data.UserManager
 import kotlinx.coroutines.launch
 
 /**
- * Login Activity - Secure authentication with biometric support
+ * Login Activity - Simple authentication with username/password and biometric support
  */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var securityManager: SecurityManager
+    private lateinit var userManager: UserManager
     private val BIOMETRIC_KEY_ALIAS = "bbre_biometric_key"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,25 +30,23 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         securityManager = SecurityManager.getInstance(this)
+        userManager = UserManager.getInstance(this)
 
         setupUI()
         setupBiometricButton()
         setupLoginButton()
+        setupRegisterLink()
     }
 
     private fun setupUI() {
-        // Set up input fields with security features
-        binding.etPhoneOrEmail.hint = getString(R.string.login_phone_hint)
-        binding.etPin.hint = getString(R.string.login_pin_hint)
-        
-        // Show/hide PIN toggle could be added here
+        binding.etUsername.hint = getString(R.string.login_username_hint)
+        binding.etPassword.hint = getString(R.string.login_password_hint)
     }
 
     private fun setupBiometricButton() {
         if (securityManager.isBiometricAvailable()) {
             binding.btnBiometric.visibility = View.VISIBLE
             
-            // Generate biometric key if not exists
             lifecycleScope.launch {
                 securityManager.generateBiometricKey(BIOMETRIC_KEY_ALIAS)
             }
@@ -61,64 +62,65 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupLoginButton() {
         binding.btnLogin.setOnClickListener {
-            val identifier = binding.etPhoneOrEmail.text.toString().trim()
-            val pin = binding.etPin.text.toString().trim()
+            val username = binding.etUsername.text.toString().trim()
+            val password = binding.etPassword.text.toString().trim()
             
-            if (validateInput(identifier, pin)) {
-                performLogin(identifier, pin)
+            if (validateInput(username, password)) {
+                performLogin(username, password)
             }
-        }
-        
-        binding.tvForgotPin.setOnClickListener {
-            // TODO: Implement PIN recovery flow
         }
     }
 
-    private fun validateInput(identifier: String, pin: String): Boolean {
+    private fun setupRegisterLink() {
+        binding.tvRegister.setOnClickListener {
+            startActivity(Intent(this, RegisterActivity::class.java))
+            finish()
+        }
+    }
+
+    private fun validateInput(username: String, password: String): Boolean {
         var isValid = true
         
-        if (identifier.isEmpty()) {
-            binding.tilPhoneOrEmail.error = "Ingresa tu celular, correo o cédula"
+        if (username.isEmpty()) {
+            binding.tilUsername.error = "Ingresa tu nombre de usuario"
             isValid = false
         } else {
-            binding.tilPhoneOrEmail.error = null
+            binding.tilUsername.error = null
         }
         
-        if (pin.isEmpty()) {
-            binding.tilPin.error = "Ingresa tu PIN"
+        if (password.isEmpty()) {
+            binding.tilPassword.error = "Ingresa tu contraseña"
             isValid = false
-        } else if (pin.length < 4) {
-            binding.tilPin.error = "El PIN debe tener al menos 4 dígitos"
+        } else if (password.length != 8) {
+            binding.tilPassword.error = getString(R.string.error_password_length)
             isValid = false
         } else {
-            binding.tilPin.error = null
+            binding.tilPassword.error = null
         }
         
         return isValid
     }
 
-    private fun performLogin(identifier: String, pin: String) {
-        // In a real app, this would verify credentials with the server
-        // For now, we'll simulate successful login after validation
-        
+    private fun performLogin(username: String, password: String) {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnLogin.isEnabled = false
         
         lifecycleScope.launch {
-            // Simulate network call
-            kotlinx.coroutines.delay(1500)
+            kotlinx.coroutines.delay(1000)
             
-            // Hash the PIN for secure storage/comparison
-            val pinHash = securityManager.hashData(pin)
+            val user = userManager.authenticate(username, password)
             
-            // Store encrypted session token
-            securityManager.storeSecureData("session_identifier", identifier)
-            securityManager.storeSecureData("session_pin_hash", pinHash)
-            
-            // Navigate to dashboard
-            startActivity(android.content.Intent(this@LoginActivity, DashboardActivity::class.java))
-            finish()
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            if (user != null) {
+                securityManager.storeSecureData("current_user", username)
+                
+                startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+                finish()
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            } else {
+                binding.tilUsername.error = getString(R.string.error_invalid_credentials)
+                binding.progressBar.visibility = View.GONE
+                binding.btnLogin.isEnabled = true
+            }
         }
     }
 
@@ -130,15 +132,19 @@ class LoginActivity : AppCompatActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     
-                    // Biometric authentication succeeded
-                    // In a real app, decrypt stored credentials and log in
                     binding.tvBiometricHint.text = "¡Autenticación exitosa!"
                     binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
                     
                     lifecycleScope.launch {
                         kotlinx.coroutines.delay(1000)
-                        startActivity(android.content.Intent(this@LoginActivity, DashboardActivity::class.java))
-                        finish()
+                        
+                        val currentUser = securityManager.getSecureData("current_user", "")
+                        if (currentUser.isNotEmpty()) {
+                            startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+                            finish()
+                        } else {
+                            binding.tvBiometricHint.text = "Primero debes iniciar sesión"
+                        }
                     }
                 }
 
@@ -164,7 +170,7 @@ class LoginActivity : AppCompatActivity() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.security_biometric_title))
             .setSubtitle(getString(R.string.security_biometric_subtitle))
-            .setNegativeButtonText("Usar PIN")
+            .setNegativeButtonText("Usar contraseña")
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or
                     BiometricManager.Authenticators.BIOMETRIC_WEAK)
             .build()
@@ -173,7 +179,6 @@ class LoginActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // Show exit confirmation or minimize app
-        super.onBackPressed()
+        moveTaskToBack(true)
     }
 }

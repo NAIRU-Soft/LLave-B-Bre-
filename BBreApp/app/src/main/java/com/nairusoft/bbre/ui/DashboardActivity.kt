@@ -1,55 +1,54 @@
 package com.nairusoft.bbre.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
+import com.nairusoft.bbre.security.SecurityManager
 
 /**
  * Dashboard Activity - Main screen after login
- * Shows balance, transfer options, and QR scanner
+ * Shows options: Mis Llaves and Configuración
  */
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDashboardBinding
+    private lateinit var securityManager: SecurityManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        securityManager = SecurityManager.getInstance(this)
+
         setupToolbar()
-        setupBalanceCard()
+        setupWelcomeMessage()
         setupActionButtons()
     }
 
     private fun setupToolbar() {
-        // Setup toolbar with BBre logo
         supportActionBar?.setDisplayShowHomeEnabled(true)
         supportActionBar?.setIcon(R.drawable.logo_bbre)
     }
 
-    private fun setupBalanceCard() {
-        // Display available balance
-        // In a real app, this would fetch from the server
-        binding.tvBalance.text = "$ 0.00 COP"
+    private fun setupWelcomeMessage() {
+        val currentUser = securityManager.getSecureData("current_user", "Usuario")
+        binding.tvWelcomeUser.text = "Bienvenido, $currentUser"
     }
 
     private fun setupActionButtons() {
-        binding.btnTransfer.setOnClickListener {
-            startActivity(android.content.Intent(this, TransferActivity::class.java))
-        }
-
-        binding.btnQR.setOnClickListener {
-            // TODO: Launch QR Scanner
-        }
-
-        binding.btnHistory.setOnClickListener {
-            // TODO: Show transaction history
+        binding.btnMyKeys.setOnClickListener {
+            startActivity(Intent(this, MyKeysActivity::class.java))
         }
 
         binding.btnSettings.setOnClickListener {
-            // TODO: Open settings
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
+    }
+
+    override fun onBackPressed() {
+        moveTaskToBack(true)
     }
 }
