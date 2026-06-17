@@ -8,7 +8,8 @@ import com.nairusoft.bbre.security.UserKey
 
 class KeysAdapter(
     private var keysList: List<UserKey>,
-    private val onCopyClick: (UserKey) -> Unit,
+    private val onRowClick: (UserKey) -> Unit,
+    private val onInfoClick: (UserKey) -> Unit,
     private val onEditClick: (UserKey) -> Unit,
     private val onDeleteClick: (UserKey) -> Unit
 ) : RecyclerView.Adapter<KeysAdapter.KeyViewHolder>() {
@@ -23,9 +24,13 @@ class KeysAdapter(
     override fun onBindViewHolder(holder: KeyViewHolder, position: Int) {
         val key = keysList[position]
         holder.binding.tvKeyType.text = key.type
-        holder.binding.tvKeyValue.text = key.value
+        holder.binding.tvKeyDescription.text = "Descripción: ${key.description}"
+        holder.binding.tvKeyValue.text = "Llave: ${key.value}"
 
-        holder.binding.btnCopy.setOnClickListener { onCopyClick(key) }
+        // Make the whole row click trigger row click action (which copies the key)
+        holder.itemView.setOnClickListener { onRowClick(key) }
+
+        holder.binding.btnInfo.setOnClickListener { onInfoClick(key) }
         holder.binding.btnEdit.setOnClickListener { onEditClick(key) }
         holder.binding.btnDelete.setOnClickListener { onDeleteClick(key) }
     }

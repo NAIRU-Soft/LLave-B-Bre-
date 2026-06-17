@@ -7,12 +7,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.RadioButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.widget.doAfterTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
@@ -21,6 +20,9 @@ import com.nairusoft.bbre.security.SecurityManager
 import com.nairusoft.bbre.security.StorageManager
 import com.nairusoft.bbre.security.User
 import com.nairusoft.bbre.security.UserKey
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class DashboardActivity : AppCompatActivity() {
@@ -104,12 +106,20 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
+    // --- Date Formatting Helper ---
+
+    private fun getCurrentFormattedDate(): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date())
+    }
+
     // --- Keys Tab Logic ---
 
     private fun setupKeysTab() {
         keysAdapter = KeysAdapter(
             emptyList(),
-            onCopyClick = { userKey -> copyToClipboard(userKey.value) },
+            onRowClick = { userKey -> copyToClipboard(userKey.value) },
+            onInfoClick = { userKey -> showKeyInfoDialog(userKey) },
             onEditClick = { userKey -> showKeyDialog(userKey) },
             onDeleteClick = { userKey -> showDeleteKeyConfirmation(userKey) }
         )
@@ -140,7 +150,24 @@ class DashboardActivity : AppCompatActivity() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("BBre Key", text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Llave copiada al portapapeles", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Llave copiada: $text", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showKeyInfoDialog(key: UserKey) {
+        AlertDialog.Builder(this)
+            .setTitle("Información de Llave")
+            .setMessage(
+                "• Creado por: ${if(key.createdBy.isEmpty()) currentUser else key.createdBy}\n" +
+                "• Banco: ${key.type}\n" +
+                "• Descripción: ${if(key.description.isEmpty()) "Sin descripción" else key.description}\n" +
+                "• Valor de Llave: ${key.value}\n" +
+                "• Fecha de Creación: ${if(key.creationDate.isEmpty()) "Desconocido" else key.creationDate}\n" +
+                "• Fecha de Modificación: ${if(key.modificationDate.isEmpty()) "Sin modificaciones" else key.modificationDate}\n" +
+                "• Versión más reciente: ${key.version}"
+            )
+            .setPositiveButton("Copiar Llave") { _, _ -> copyToClipboard(key.value) }
+            .setNegativeButton("Cerrar", null)
+            .show()
     }
 
     private fun showKeyDialog(existingKey: UserKey?) {
@@ -152,34 +179,37 @@ class DashboardActivity : AppCompatActivity() {
         dialogBinding.tvDialogTitle.text = if (existingKey == null) "Agregar Nueva Llave" else "Modificar Llave"
 
         // Setup Spinners/Adapters for banks
-        val banks = arrayOf("Banco de la República", "Bancolombia", "Davivienda", "Nequi", "Daviplata")
-        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, banks)
+        val defaultBanks = mutableListOf("Banco de la República", "Bancolombia", "Davivienda", "Nequi", "Daviplata", "+ Agregar nuevo banco...")
+        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, defaultBanks)
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         dialogBinding.spinnerKeyType.adapter = spinnerAdapter
 
-        // Pre-populate if editing
-        if (existingKey != null) {
-            val bankIndex = banks.indexOf(existingKey.type)
-            if (bankIndex != -1) {
-                dialogBinding.spinnerKeyType.setSelection(bankIndex)
-            }
-            dialogBinding.etKeyValue.setText(existingKey.value)
-            
-            // Lock category changing during edits for consistency
-            dialogBinding.rgCategory.visibility = View.GONE
-            dialogBinding.tilKeyValue.visibility = View.VISIBLE
-        } else {
-            // Logic for Category changes to show/hide value or generate random code
-            dialogBinding.rgCategory.setOnCheckedChangeListener { _, checkedId ->
-                if (checkedId == R.id.rbRandom) {
-                    val randomCode = UUID.randomUUID().toString().substring(0, 12).uppercase()
-                    dialogBinding.etKeyValue.setText(randomCode)
-                    dialogBinding.tilKeyValue.isEnabled = false
+        // Control visibility of custom bank entry
+        dialogBinding.spinnerKeyType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (defaultBanks[position] == "+ Agregar nuevo banco...") {
+                    dialogBinding.tilCustomBank.visibility = View.VISIBLE
                 } else {
-                    dialogBinding.etKeyValue.text?.clear()
-                    dialogBinding.tilKeyValue.isEnabled = true
+                    dialogBinding.tilCustomBank.visibility = View.GONE
                 }
             }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Pre-populate if editing
+        if (existingKey != null) {
+            val bankIndex = defaultBanks.indexOf(existingKey.type)
+            if (bankIndex != -1) {
+                dialogBinding.spinnerKeyType.setSelection(bankIndex)
+            } else {
+                // If it's a custom bank, set spinner to custom and fill custom text
+                dialogBinding.spinnerKeyType.setSelection(defaultBanks.indexOf("+ Agregar nuevo banco..."))
+                dialogBinding.tilCustomBank.visibility = View.VISIBLE
+                dialogBinding.etCustomBank.setText(existingKey.type)
+            }
+            dialogBinding.etDescription.setText(existingKey.description)
+            dialogBinding.etKeyValue.setText(existingKey.value)
         }
 
         dialogBinding.btnCancel.setOnClickListener {
@@ -187,13 +217,30 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         dialogBinding.btnSave.setOnClickListener {
-            val type = dialogBinding.spinnerKeyType.selectedItem.toString()
+            var type = dialogBinding.spinnerKeyType.selectedItem.toString()
+            if (type == "+ Agregar nuevo banco...") {
+                val customBank = dialogBinding.etCustomBank.text.toString().trim()
+                if (customBank.isEmpty()) {
+                    dialogBinding.tilCustomBank.error = "Escribe el nombre del banco"
+                    return@setOnClickListener
+                }
+                type = customBank
+            }
+            
+            val description = dialogBinding.etDescription.text.toString().trim()
             val value = dialogBinding.etKeyValue.text.toString().trim()
+
+            if (description.isEmpty()) {
+                dialogBinding.tilDescription.error = "Ingresa una descripción"
+                return@setOnClickListener
+            }
 
             if (value.isEmpty()) {
                 dialogBinding.tilKeyValue.error = "Ingresa un valor para la llave"
                 return@setOnClickListener
             }
+
+            val currentTime = getCurrentFormattedDate()
 
             if (existingKey == null) {
                 // Add key
@@ -201,7 +248,12 @@ class DashboardActivity : AppCompatActivity() {
                     id = UUID.randomUUID().toString(),
                     type = type,
                     value = value,
-                    username = currentUser
+                    username = currentUser,
+                    createdBy = currentUser,
+                    creationDate = currentTime,
+                    modificationDate = currentTime,
+                    version = "0.0.1",
+                    description = description
                 )
                 if (storageManager.addKey(newKey)) {
                     Toast.makeText(this, "Llave agregada exitosamente", Toast.LENGTH_SHORT).show()
@@ -212,7 +264,12 @@ class DashboardActivity : AppCompatActivity() {
                 }
             } else {
                 // Update key
-                val updatedKey = existingKey.copy(type = type, value = value)
+                val updatedKey = existingKey.copy(
+                    type = type, 
+                    value = value,
+                    description = description,
+                    modificationDate = currentTime
+                )
                 if (storageManager.updateKey(updatedKey)) {
                     Toast.makeText(this, "Llave modificada exitosamente", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
@@ -288,6 +345,44 @@ class DashboardActivity : AppCompatActivity() {
         binding.btnDeleteAccount.setOnClickListener {
             showDeleteAccountConfirmation()
         }
+
+        // Add System / Key Info Dialog button in Configuración
+        val btnSystemInfo = com.google.android.material.button.MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
+            text = "Información de Llave y Sistema"
+            id = View.generateViewId()
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = 16
+                bottomMargin = 16
+            }
+            setIconResource(android.R.drawable.ic_menu_info_details)
+            setIconGravity(com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START)
+            // Style it to match primary/secondary button theme
+            setBackgroundColor(getColor(R.color.bbre_primary))
+            setTextColor(getColor(R.color.white))
+            setOnClickListener {
+                showSystemInfoDialog()
+            }
+        }
+
+        // Add this button dynamically to the layout settings container
+        val settingsLayoutContainer = binding.layoutSettings.getChildAt(0) as? android.widget.LinearLayout
+        settingsLayoutContainer?.addView(btnSystemInfo, 3) // Add right above Logout button
+    }
+
+    private fun showSystemInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Información del Sistema BBre")
+            .setMessage(
+                "• Nombre de la App: BBre - NairuSoft\n" +
+                "• Creado por: NairuSoft\n" +
+                "• Propósito: Administración local de llaves y credenciales seguras\n" +
+                "• Versión más reciente: 0.0.1"
+            )
+            .setPositiveButton("Aceptar", null)
+            .show()
     }
 
     private fun showDeleteAccountConfirmation() {

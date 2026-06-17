@@ -17,7 +17,12 @@ data class UserKey(
     val id: String,
     val type: String,
     val value: String,
-    val username: String
+    val username: String,
+    val createdBy: String = "",
+    val creationDate: String = "",
+    val modificationDate: String = "",
+    val version: String = "0.0.1",
+    val description: String = ""
 )
 
 class StorageManager(private val context: Context) {

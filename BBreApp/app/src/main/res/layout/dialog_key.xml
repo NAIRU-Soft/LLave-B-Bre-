@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="20dp">
+    android:padding="20dp"
+    android:background="@color/background_primary">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,15 +20,15 @@
             android:textColor="@color/bbre_primary"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="20dp" />
 
         <!-- Key Type Label -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Tipo de Llave (Banco)"
-            android:textColor="@color/gray_dark"
-            android:textSize="12sp"
+            android:text="Selecciona el Banco"
+            android:textColor="@color/bbre_primary"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
@@ -37,67 +38,78 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:background="@drawable/security_badge_background"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="12dp"
             android:padding="8dp" />
 
-        <!-- Key Category (DataType) Label -->
+        <!-- Custom Bank Input Field (Hidden by default, shown if + Agregar nuevo banco is selected) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilCustomBank"
+            style="@style/Widget.BBreApp.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Escribe el nombre del nuevo banco"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etCustomBank"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:inputType="textCapWords" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Description Input -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Categoría de Llave"
-            android:textColor="@color/gray_dark"
-            android:textSize="12sp"
+            android:text="Descripción"
+            android:textColor="@color/bbre_primary"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <!-- Key Category RadioGroup -->
-        <RadioGroup
-            android:id="@+id/rgCategory"
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilDescription"
+            style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:hint="Escribe una descripción"
             android:layout_marginBottom="16dp">
 
-            <RadioButton
-                android:id="@+id/rbPhone"
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etDescription"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Celular"
-                android:checked="true" />
+                android:textColor="@color/black"
+                android:inputType="textCapSentences" />
 
-            <RadioButton
-                android:id="@+id/rbId"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Cédula" />
-
-            <RadioButton
-                android:id="@+id/rbEmail"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Correo Electrónico" />
-
-            <RadioButton
-                android:id="@+id/rbRandom"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Código Alfanumérico Aleatorio (Único)" />
-
-        </RadioGroup>
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Key Value Input -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Valor de la Llave"
+            android:textColor="@color/bbre_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilKeyValue"
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Valor de la llave"
+            android:hint="Ej. celular, cédula, correo o código"
             android:layout_marginBottom="24dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etKeyValue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="@color/black"
                 android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -111,11 +123,11 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancel"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.BBreApp.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancelar"
-                android:textColor="@color/gray_dark"
+                android:textColor="@color/bbre_primary"
                 android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton

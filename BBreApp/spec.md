@@ -196,3 +196,24 @@ fix 0.0.3
 revisa en build.gradle.kts
 Supplied proguard configuration does not exist: C:\Users\Usuario\Documents\GitHub\Nairu\LLave-B-Bre\BBreApp\app\proguard-rules.pro
 
+fix 0.0.4
+-revisa que aparezca en letra negra al escribir el nombre de usuario y contraseña y también en la parte de configuración.
+-aumentar el tamaño de la letra y configurala mejor en el formulario de login la parte de: Ingresar
+esta muy bien la parte de crear, en la parte de agregar nueva clave, es muy importante que me muestre la opcion de agregar nuevo banco. 
+a parte de celular, cédula, correo electrónico y código alfanumerico sobran, deja solo el valor de la llave.
+-mejora los colores, ese gris no me gusta tanto, trata de usar colores mas agradables a la vista y mas claros.
+la parte de modificar también mejorala, que se parezca a la parte de crear nueva clave.
+al eliminar tampoco me gusta,. modifca y toma los colres de modificar y crear llaves, unifica conceptos.
+-al darle al frente de cada cual, tome como copiar el código de la llave.
+-muestra la herramienta de configuración habilitada por qué aparece desahilitada.
+deberia aparecer en mis llaves y configuración tendría que mostrarse una nueva 
+función llamada: Información de de Llave, quien fue que la creo, como se llama, quien la creo, fecha de creación, fecha de modificación, y version más reciente.
+versión 0.0.1.
+
+fix 0.0.5
+adiciona un campo llamado: descripción 
+en esta queda debajo de cada banco, por ejemplo: 
+Banco de la República
+Descripción: 
+Llave: 
+tambiénn modificar en el formulario de crear llave el campo Banco de la República por el campo de: descripción
