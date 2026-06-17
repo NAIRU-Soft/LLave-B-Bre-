@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Pin certificates for BBre API -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">bbre.banrep.gov.co</domain>
+        <pin-set expiration="2025-12-31">
+            <!-- Add certificate pins here -->
+        </pin-set>
+    </domain-config>
+</network-security-config>
