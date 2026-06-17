@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="150dp"
+    android:height="50dp"
+    android:viewportWidth="150"
+    android:viewportHeight="50">
+    
+    <!-- NairuSoft Logo -->
+    <group android:translateX="10" android:translateY="10">
+        <!-- Icon -->
+        <path
+            android:fillColor="#42A5F5"
+            android:pathData="M0,0 L15,0 L15,15 L0,15 Z M3,3 L12,3 L12,12 L3,12 Z" />
+        
+        <!-- Text: Nairu -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M25,0 L35,0 L35,15 L25,15 Z M28,3 L32,3 L32,12 L28,12 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M38,0 L48,0 L48,3 L41,3 L41,6 L46,6 L46,9 L41,9 L41,12 L48,12 L48,15 L38,15 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M51,0 L61,0 L61,3 L54,3 L54,15 L51,15 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M64,0 L74,0 L74,3 L67,3 L67,15 L64,15 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M77,0 L87,0 L87,3 L80,3 L80,15 L77,15 Z" />
+        
+        <!-- Text: Soft -->
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M92,0 L102,0 L102,3 L95,3 L95,15 L92,15 Z" />
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M105,0 L115,0 C120,0 122,2 122,5 C122,8 120,10 115,10 L108,10 L108,15 L105,15 Z M108,3 L108,7 L115,7 C117,7 118,6 118,5 C118,4 117,3 115,3 Z" />
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M125,0 L135,0 L135,3 L128,3 L128,6 L133,6 L133,9 L128,9 L128,12 L135,12 L135,15 L125,15 Z" />
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M138,0 L148,0 L148,15 L138,15 Z M141,3 L145,3 L145,12 L141,12 Z" />
+    </group>
+</vector>

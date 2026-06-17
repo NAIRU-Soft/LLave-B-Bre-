@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BBre - NairuSoft</string>
+    <string name="app_slogan">Pagos inmediatos en Colombia</string>
+    
+    <!-- Splash Screen -->
+    <string name="splash_bbre">BBre</string>
+    <string name="splash_nairusoft">NairuSoft</string>
+    <string name="splash_description">Sistema de pagos inmediatos del Banco de la República</string>
+    
+    <!-- Login -->
+    <string name="login_title">Bienvenido a BBre</string>
+    <string name="login_subtitle">Ingresa con tu llave</string>
+    <string name="login_phone_hint">Número de celular</string>
+    <string name="login_email_hint">Correo electrónico</string>
+    <string name="login_id_hint">Cédula de ciudadanía</string>
+    <string name="login_pin_hint">PIN de seguridad</string>
+    <string name="login_biometric">Usar huella digital</string>
+    <string name="login_button">Ingresar</string>
+    <string name="login_forgot_pin">¿Olvidaste tu PIN?</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_balance">Saldo disponible</string>
+    <string name="dashboard_transfer">Transferir</string>
+    <string name="dashboard_qr">Escanear QR</string>
+    <string name="dashboard_history">Historial</string>
+    <string name="dashboard_settings">Configuración</string>
+    
+    <!-- Transfer -->
+    <string name="transfer_title">Nueva Transferencia</string>
+    <string name="transfer_amount">Monto (COP)</string>
+    <string name="transfer_recipient">Destinatario</string>
+    <string name="transfer_key_type">Tipo de llave</string>
+    <string name="transfer_button">Enviar dinero</string>
+    <string name="transfer_limit">Límite: $12.110.000 por transacción</string>
+    <string name="transfer_success">¡Transferencia exitosa!</string>
+    
+    <!-- QR Scanner -->
+    <string name="qr_title">Escanear Código QR</string>
+    <string name="qr_instructions">Apunta la cámara al código QR</string>
+    <string name="qr_permission_required">Permiso de cámara requerido</string>
+    
+    <!-- Security -->
+    <string name="security_biometric_title">Autenticación Biométrica</string>
+    <string name="security_biometric_subtitle">Usa tu huella para acceder</string>
+    <string name="security_pin_required">PIN requerido</string>
+    <string name="security_face_id">Usar reconocimiento facial</string>
+    <string name="security_fingerprint">Usar huella digital</string>
+    
+    <!-- Messages -->
+    <string name="error_network">Error de conexión. Verifica tu internet.</string>
+    <string name="error_invalid_key">Llave inválida</string>
+    <string name="error_insufficient_funds">Fondos insuficientes</string>
+    <string name="error_limit_exceeded">Superaste el límite de transferencia</string>
+    <string name="success_registration">Llave registrada exitosamente</string>
+    
+    <!-- Keys Types -->
+    <string name="key_type_phone">Celular</string>
+    <string name="key_type_email">Correo</string>
+    <string name="key_type_id">Cédula</string>
+    <string name="key_type_random">Código Aleatorio</string>
+    
+    <!-- Menu -->
+    <string name="menu_register_key">Registrar Llave</string>
+    <string name="menu_my_keys">Mis Llaves</string>
+    <string name="menu_logout">Cerrar Sesión</string>
+    <string name="menu_help">Ayuda</string>
+    <string name="menu_about">Acerca de</string>
+    
+    <!-- About -->
+    <string name="about_description">BBre es el nuevo sistema de pagos inmediatos en Colombia, desarrollado por el Banco de la República. Permite enviar y recibir dinero al instante, todos los días y a cualquier hora, sin importar el banco y de forma gratuita.</string>
+    <string name="about_developed_by">Desarrollado por NairuSoft</string>
+</resources>

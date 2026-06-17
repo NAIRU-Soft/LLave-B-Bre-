@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colors - BBre Brand -->
+    <color name="bbre_primary">#003366</color>
+    <color name="bbre_primary_dark">#002244</color>
+    <color name="bbre_accent">#FFD700</color>
+    <color name="bbre_accent_variant">#FFC107</color>
+    
+    <!-- NairuSoft Brand -->
+    <color name="nairusoft_primary">#1976D2</color>
+    <color name="nairusoft_secondary">#42A5F5</color>
+    
+    <!-- Common -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_light">#F5F5F5</color>
+    <color name="gray">#9E9E9E</color>
+    <color name="gray_dark">#424242</color>
+    <color name="green_success">#4CAF50</color>
+    <color name="red_error">#F44336</color>
+    
+    <!-- Background -->
+    <color name="background_primary">#FAFAFA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="error">#B00020</color>
+</resources>
+    <color name="orange_warning">#FF9800</color>

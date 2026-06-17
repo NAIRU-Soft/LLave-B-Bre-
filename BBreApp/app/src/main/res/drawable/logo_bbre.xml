@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="80dp"
+    android:viewportWidth="200"
+    android:viewportHeight="80">
+    
+    <!-- BBre Logo Text -->
+    <group android:translateX="20" android:translateY="20">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0,0 L25,0 L25,10 L10,10 L10,40 L0,40 Z" />
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M30,0 L55,0 C65,0 70,5 70,15 C70,22 66,27 58,29 L72,40 L58,40 L48,30 L40,30 L40,40 L30,40 Z M40,10 L40,20 L55,20 C60,20 62,18 62,15 C62,12 60,10 55,10 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M80,0 L90,0 L90,30 L110,30 L110,40 L80,40 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M120,0 L145,0 L145,10 L130,10 L130,15 L142,15 L142,25 L130,25 L130,30 L145,30 L145,40 L120,40 Z" />
+    </group>
+</vector>
