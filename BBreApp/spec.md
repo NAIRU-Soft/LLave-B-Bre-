@@ -167,3 +167,31 @@ Fix with AI
 
 w: file:///C:/Users/Usuario/Documents/GitHub/Nairu/LLave-B-Bre/BBreApp/app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt:58:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 
+feature 0.0.2
+necesito que quites el inicio de sesion (celular y la clave).
+debe salir un registro sencillo (nombre de usuario y contraseña de 8 caracteres)
+simplemente esa sería los datos de usuario (nombre de usuario y contraseña de 8 caracteres). registro sencillo que va a almacenar los datos en un archivo sencilo como puede ser un archivo de texto obviamente encriptado llamado usuarios.json
+los datos deben estar administrado por otro archivo llamado llaves.json, el cual va a tener las llaves generadas por la aplicacion para cada usuario esto tambien debe estar protegido, ten cuidado con eso.
+
+retira o elimina lo de saldo, no me interesa saber cuanto tengo de saldo ni conocer cuanto es el limite.
+tampoco me interesa transferir, cambialo por otra cosa llamado Mis LLaves.
+en el sentido de que me muestre las llaves que tiene el usuario.
+elimina o retira la funcionalidad de pagos por qr o escaneame QR no me interesa.
+elimina o retira la funcionalidad de historial de transacciones, no me interesa.
+configuración, si me interesa solo para administrar mi perfil (nombre de usuario y contraseña) y mi llaves. 
+por favor no me borres las llaves, son muy importantes para mi.
+en la nueva pestaña que creas llamada: Mis LLaves necesito que me muestres las llaves que tiene el usuario. 
+tambien necesito un boton de crear llave, al oprimirlo me sale una pantalla que me pregunta por el tipo de llave (Banco), Llave (cedula, celular, correo, codigo alfanumerico aleatorio que tiene que ser unico), o codigo alfanumerico.
+la posibilidad de eliminar o modificar este dato.
+entonces necesito solo necesito:
+- el splash de inicio
+-el formulario de registro (sencillo: nombre de usuario y contraseña de 8 caracteres)
+-el formulario de login (sencillo: nombre de usuario y contraseña de 8 caracteres)usar la huella dactilar o el rostro (heredado de android) para ingresar.
+la pantalla de mis llaves.
+-el formulario de Mis llaves que me permita crear llaves, eliminarlas y modificarlas, consultarlas (por favor no borres las llaves).
+la pantalla de configuración que me permita administrar mi perfil (nombre de usuario y contraseña)
+-configuración, sería sencillo si necesita eliminar un usuario, modificar, eliminar o modificar un usuario registrado. si no le gusta el usuario registrado, puede eliminarlo.
+
+
+
+
