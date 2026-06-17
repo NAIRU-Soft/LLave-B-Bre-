@@ -2,6 +2,7 @@ package com.nairusoft.bbre.ui
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityTransferBinding
 
 /**

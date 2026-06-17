@@ -23,5 +23,6 @@
     <color name="background_primary">#FAFAFA</color>
     <color name="surface">#FFFFFF</color>
     <color name="error">#B00020</color>
-</resources>
     <color name="orange_warning">#FF9800</color>
+</resources>
+

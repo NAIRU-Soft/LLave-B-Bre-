@@ -52,9 +52,4 @@ class DashboardActivity : AppCompatActivity() {
             // TODO: Open settings
         }
     }
-
-    override fun onBackPressed() {
-        // Show exit confirmation or minimize to background
-        super.onBackPressed()
-    }
 }

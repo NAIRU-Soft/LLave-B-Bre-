@@ -54,7 +54,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:hint="@string/login_phone_hint"
-        app:startIconDrawable="@android:drawable/ic_menu_call"
+        app:startIconDrawable="@drawable/ic_call"
         app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -76,7 +76,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:hint="@string/login_pin_hint"
-        app:startIconDrawable="@android:drawable/ic_lock_lock"
+        app:startIconDrawable="@drawable/ic_lock"
         app:endIconMode="password_toggle"
         app:layout_constraintTop_toBottomOf="@id/tilPhoneOrEmail"
         app:layout_constraintStart_toStartOf="parent"
@@ -151,7 +151,7 @@
             android:layout_height="48dp"
             android:text="@string/login_biometric"
             android:textSize="14sp"
-            app:icon="@android:drawable/ic_lock_fingerprint"
+            app:icon="@drawable/ic_fingerprint"
             app:iconGravity="textStart"
             app:cornerRadius="24dp" />
 
