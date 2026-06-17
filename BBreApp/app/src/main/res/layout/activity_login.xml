@@ -20,7 +20,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="24dp" />
 
-    <!-- Welcome Text -->
+    <!-- Title -->
     <TextView
         android:id="@+id/tvWelcome"
         android:layout_width="wrap_content"
@@ -47,13 +47,13 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="8dp" />
 
-    <!-- Phone/Email Input -->
+    <!-- Username Input -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilPhoneOrEmail"
+        android:id="@+id/tilUsername"
         style="@style/Widget.BBreApp.TextInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="@string/login_phone_hint"
+        android:hint="Nombre de usuario"
         app:startIconDrawable="@drawable/ic_call"
         app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
         app:layout_constraintStart_toStartOf="parent"
@@ -61,65 +61,65 @@
         android:layout_marginTop="40dp">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etPhoneOrEmail"
+            android:id="@+id/etUsername"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="phone"
+            android:inputType="text"
             android:maxLines="1" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- PIN Input -->
+    <!-- Password Input -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilPin"
+        android:id="@+id/tilPassword"
         style="@style/Widget.BBreApp.TextInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="@string/login_pin_hint"
+        android:hint="Contraseña (mínimo 8 caracteres)"
         app:startIconDrawable="@drawable/ic_lock"
         app:endIconMode="password_toggle"
-        app:layout_constraintTop_toBottomOf="@id/tilPhoneOrEmail"
+        app:layout_constraintTop_toBottomOf="@id/tilUsername"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="16dp">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etPin"
+            android:id="@+id/etPassword"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="numberPassword"
-            android:maxLength="6"
+            android:inputType="textPassword"
             android:maxLines="1" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Forgot PIN -->
+    <!-- Toggle Mode Link -->
     <TextView
-        android:id="@+id/tvForgotPin"
+        android:id="@+id/tvToggleMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/login_forgot_pin"
+        android:text="¿No tienes una cuenta? Registrate"
         android:textColor="@color/bbre_primary"
         android:textSize="14sp"
         android:clickable="true"
         android:focusable="true"
-        app:layout_constraintTop_toBottomOf="@id/tilPin"
+        app:layout_constraintTop_toBottomOf="@id/tilPassword"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp" />
+        android:layout_marginTop="16dp" />
 
-    <!-- Login Button -->
+    <!-- Action Button (Login/Register) -->
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnLogin"
+        android:id="@+id/btnAction"
         style="@style/Widget.BBreApp.Button.Primary"
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:text="@string/login_button"
         android:textSize="16sp"
         app:cornerRadius="12dp"
-        app:layout_constraintTop_toBottomOf="@id/tvForgotPin"
+        app:layout_constraintTop_toBottomOf="@id/tvToggleMode"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="24dp" />
 
     <!-- Divider -->
     <View
@@ -127,10 +127,10 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="@color/gray_light"
-        app:layout_constraintTop_toBottomOf="@id/btnLogin"
+        app:layout_constraintTop_toBottomOf="@id/btnAction"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="24dp" />
 
     <!-- Biometric Section -->
     <LinearLayout
@@ -142,7 +142,7 @@
         app:layout_constraintTop_toBottomOf="@id/divider"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp">
+        android:layout_marginTop="20dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBiometric"
@@ -177,6 +177,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="32dp" />
+        android:layout_marginBottom="16dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

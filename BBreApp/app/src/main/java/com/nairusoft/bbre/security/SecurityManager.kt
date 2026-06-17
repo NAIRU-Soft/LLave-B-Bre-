@@ -108,6 +108,37 @@ class SecurityManager(private val context: Context) {
     }
 
     /**
+     * Generate a standard secure key in Android Keystore (no biometric requirement)
+     */
+    fun generateStandardKey(alias: String): SecretKey? {
+        return try {
+            if (keyStore.containsAlias(alias)) {
+                return getSecretKey(alias)
+            }
+
+            val keyGenerator = KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                ANDROID_KEYSTORE
+            )
+
+            val keyGenParameterSpec = KeyGenParameterSpec.Builder(
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .build()
+
+            keyGenerator.init(keyGenParameterSpec)
+            keyGenerator.generateKey()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
      * Get secret key from keystore
      */
     fun getSecretKey(alias: String): SecretKey? {
@@ -133,6 +164,27 @@ class SecurityManager(private val context: Context) {
             
             // Combine IV and encrypted data
             iv + encryptedData
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Encrypt data and return Base64 string
+     */
+    fun encryptToBase64(data: String, alias: String): String? {
+        val encrypted = encrypt(data, alias) ?: return null
+        return android.util.Base64.encodeToString(encrypted, android.util.Base64.DEFAULT)
+    }
+
+    /**
+     * Decrypt data from Base64 string
+     */
+    fun decryptFromBase64(base64Data: String, alias: String): String? {
+        return try {
+            val encryptedData = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+            decrypt(encryptedData, alias)
         } catch (e: Exception) {
             e.printStackTrace()
             null

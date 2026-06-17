@@ -28,7 +28,8 @@ android {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
+                "proguard-fix.pro"
             )
         }
         debug {
@@ -36,7 +37,8 @@ android {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
+                "proguard-fix.pro"
             )
         }
     }
@@ -79,6 +81,9 @@ dependencies {
     // DataStore for secure preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     
+    // Fix for Tink missing annotations (javax.annotation.Nullable, GuardedBy)
+    implementation("com.google.code.findbugs:jsr305:3.0.2")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

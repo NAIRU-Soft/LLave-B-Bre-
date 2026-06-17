@@ -1,7 +1,9 @@
 package com.nairusoft.bbre.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -10,16 +12,22 @@ import androidx.lifecycle.lifecycleScope
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.security.StorageManager
+import com.nairusoft.bbre.security.User
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Login Activity - Secure authentication with biometric support
+ * Login Activity - Secure authentication with biometric support and simple credentials
  */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var securityManager: SecurityManager
+    private lateinit var storageManager: StorageManager
     private val BIOMETRIC_KEY_ALIAS = "bbre_biometric_key"
+    
+    private var isLoginMode = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,24 +35,53 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         securityManager = SecurityManager.getInstance(this)
+        storageManager = StorageManager.getInstance(this)
 
-        setupUI()
+        updateModeUI()
+        setupToggleMode()
         setupBiometricButton()
-        setupLoginButton()
+        setupActionButton()
     }
 
-    private fun setupUI() {
-        // Set up input fields with security features
-        binding.etPhoneOrEmail.hint = getString(R.string.login_phone_hint)
-        binding.etPin.hint = getString(R.string.login_pin_hint)
+    private fun updateModeUI() {
+        if (isLoginMode) {
+            binding.tvWelcome.text = getString(R.string.login_title)
+            binding.tvSubtitle.text = getString(R.string.login_subtitle)
+            binding.tilUsername.hint = "Nombre de usuario"
+            binding.tilPassword.hint = "Contraseña"
+            binding.btnAction.text = "Ingresar"
+            binding.tvToggleMode.text = "¿No tienes una cuenta? Regístrate"
+            
+            // Show biometric option if a previous session exists
+            val savedUser = securityManager.getSecureData("session_username")
+            if (savedUser.isNotEmpty() && securityManager.isBiometricAvailable()) {
+                binding.llBiometric.visibility = View.VISIBLE
+            } else {
+                binding.llBiometric.visibility = View.GONE
+            }
+        } else {
+            binding.tvWelcome.text = "Crear Cuenta"
+            binding.tvSubtitle.text = "Regístrate de forma sencilla"
+            binding.tilUsername.hint = "Elige un usuario"
+            binding.tilPassword.hint = "Contraseña (mínimo 8 caracteres)"
+            binding.btnAction.text = "Registrar"
+            binding.tvToggleMode.text = "¿Ya tienes una cuenta? Inicia sesión"
+            binding.llBiometric.visibility = View.GONE
+        }
         
-        // Show/hide PIN toggle could be added here
+        binding.tilUsername.error = null
+        binding.tilPassword.error = null
+    }
+
+    private fun setupToggleMode() {
+        binding.tvToggleMode.setOnClickListener {
+            isLoginMode = !isLoginMode
+            updateModeUI()
+        }
     }
 
     private fun setupBiometricButton() {
         if (securityManager.isBiometricAvailable()) {
-            binding.btnBiometric.visibility = View.VISIBLE
-            
             // Generate biometric key if not exists
             lifecycleScope.launch {
                 securityManager.generateBiometricKey(BIOMETRIC_KEY_ALIAS)
@@ -53,72 +90,95 @@ class LoginActivity : AppCompatActivity() {
             binding.btnBiometric.setOnClickListener {
                 showBiometricPrompt()
             }
-        } else {
-            binding.btnBiometric.visibility = View.GONE
-            binding.tvBiometricHint.visibility = View.GONE
         }
     }
 
-    private fun setupLoginButton() {
-        binding.btnLogin.setOnClickListener {
-            val identifier = binding.etPhoneOrEmail.text.toString().trim()
-            val pin = binding.etPin.text.toString().trim()
+    private fun setupActionButton() {
+        binding.btnAction.setOnClickListener {
+            val username = binding.etUsername.text.toString().trim()
+            val password = binding.etPassword.text.toString().trim()
             
-            if (validateInput(identifier, pin)) {
-                performLogin(identifier, pin)
+            if (validateInput(username, password)) {
+                if (isLoginMode) {
+                    performLogin(username, password)
+                } else {
+                    performRegister(username, password)
+                }
             }
         }
-        
-        binding.tvForgotPin.setOnClickListener {
-            // TODO: Implement PIN recovery flow
-        }
     }
 
-    private fun validateInput(identifier: String, pin: String): Boolean {
+    private fun validateInput(username: String, password: String): Boolean {
         var isValid = true
         
-        if (identifier.isEmpty()) {
-            binding.tilPhoneOrEmail.error = "Ingresa tu celular, correo o cédula"
+        if (username.isEmpty()) {
+            binding.tilUsername.error = "Ingresa tu nombre de usuario"
             isValid = false
         } else {
-            binding.tilPhoneOrEmail.error = null
+            binding.tilUsername.error = null
         }
         
-        if (pin.isEmpty()) {
-            binding.tilPin.error = "Ingresa tu PIN"
+        if (password.isEmpty()) {
+            binding.tilPassword.error = "Ingresa tu contraseña"
             isValid = false
-        } else if (pin.length < 4) {
-            binding.tilPin.error = "El PIN debe tener al menos 4 dígitos"
+        } else if (password.length < 8) {
+            binding.tilPassword.error = "La contraseña debe tener al menos 8 caracteres"
             isValid = false
         } else {
-            binding.tilPin.error = null
+            binding.tilPassword.error = null
         }
         
         return isValid
     }
 
-    private fun performLogin(identifier: String, pin: String) {
-        // In a real app, this would verify credentials with the server
-        // For now, we'll simulate successful login after validation
-        
+    private fun performLogin(username: String, password: String) {
         binding.progressBar.visibility = View.VISIBLE
-        binding.btnLogin.isEnabled = false
+        binding.btnAction.isEnabled = false
         
         lifecycleScope.launch {
-            // Simulate network call
-            kotlinx.coroutines.delay(1500)
+            delay(1000) // Simulate network/crypto operation delay
             
-            // Hash the PIN for secure storage/comparison
-            val pinHash = securityManager.hashData(pin)
+            val users = storageManager.getUsers()
+            val foundUser = users.find { it.username.equals(username, ignoreCase = true) }
+            val inputHash = securityManager.hashData(password)
+
+            if (foundUser != null && foundUser.passwordHash == inputHash) {
+                // Successful login
+                securityManager.storeSecureData("session_username", foundUser.username)
+                
+                startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+                finish()
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            } else {
+                binding.progressBar.visibility = View.GONE
+                binding.btnAction.isEnabled = true
+                binding.tilPassword.error = "Usuario o contraseña incorrectos"
+            }
+        }
+    }
+
+    private fun performRegister(username: String, password: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        binding.btnAction.isEnabled = false
+        
+        lifecycleScope.launch {
+            delay(1000)
             
-            // Store encrypted session token
-            securityManager.storeSecureData("session_identifier", identifier)
-            securityManager.storeSecureData("session_pin_hash", pinHash)
+            val passwordHash = securityManager.hashData(password)
+            val newUser = User(username, passwordHash)
+            val success = storageManager.addUser(newUser)
             
-            // Navigate to dashboard
-            startActivity(android.content.Intent(this@LoginActivity, DashboardActivity::class.java))
-            finish()
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            binding.progressBar.visibility = View.GONE
+            binding.btnAction.isEnabled = true
+            
+            if (success) {
+                Toast.makeText(this@LoginActivity, "Registro exitoso. Ahora puedes iniciar sesión.", Toast.LENGTH_LONG).show()
+                isLoginMode = true
+                updateModeUI()
+                binding.etPassword.text?.clear()
+            } else {
+                binding.tilUsername.error = "El usuario ya está registrado"
+            }
         }
     }
 
@@ -130,26 +190,28 @@ class LoginActivity : AppCompatActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     
-                    // Biometric authentication succeeded
-                    // In a real app, decrypt stored credentials and log in
-                    binding.tvBiometricHint.text = "¡Autenticación exitosa!"
-                    binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
-                    
-                    lifecycleScope.launch {
-                        kotlinx.coroutines.delay(1000)
-                        startActivity(android.content.Intent(this@LoginActivity, DashboardActivity::class.java))
-                        finish()
+                    val savedUser = securityManager.getSecureData("session_username")
+                    if (savedUser.isNotEmpty()) {
+                        binding.tvBiometricHint.text = "¡Autenticación exitosa!"
+                        binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
+                        
+                        lifecycleScope.launch {
+                            delay(800)
+                            startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+                            finish()
+                        }
+                    } else {
+                        binding.tvBiometricHint.text = "Inicia sesión con contraseña primero"
+                        binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
                     }
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    
                     if (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
                         errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
                         return
                     }
-                    
                     binding.tvBiometricHint.text = "Error: $errString"
                     binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                 }
@@ -164,7 +226,7 @@ class LoginActivity : AppCompatActivity() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.security_biometric_title))
             .setSubtitle(getString(R.string.security_biometric_subtitle))
-            .setNegativeButtonText("Usar PIN")
+            .setNegativeButtonText("Usar Contraseña")
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or
                     BiometricManager.Authenticators.BIOMETRIC_WEAK)
             .build()
@@ -173,7 +235,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // Show exit confirmation or minimize app
-        super.onBackPressed()
+        if (!isLoginMode) {
+            isLoginMode = true
+            updateModeUI()
+        } else {
+            super.onBackPressed()
+        }
     }
 }
