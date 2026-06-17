@@ -192,6 +192,7 @@ la pantalla de mis llaves.
 la pantalla de configuración que me permita administrar mi perfil (nombre de usuario y contraseña)
 -configuración, sería sencillo si necesita eliminar un usuario, modificar, eliminar o modificar un usuario registrado. si no le gusta el usuario registrado, puede eliminarlo.
 
-
-
+fix 0.0.3
+revisa en build.gradle.kts
+Supplied proguard configuration does not exist: C:\Users\Usuario\Documents\GitHub\Nairu\LLave-B-Bre\BBreApp\app\proguard-rules.pro
 
