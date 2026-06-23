@@ -217,3 +217,8 @@ Banco de la República
 Descripción: 
 Llave: 
 tambiénn modificar en el formulario de crear llave el campo Banco de la República por el campo de: descripción
+
+fix 0.0.6
+necesito que se cierre sesion si queda abierta la sesion o 5 minutos inactivos, al igual que se cierre la sesión. 
+-cuando se cierra sesion, se debe limpiar la sesion de usuario, para que no se pueda acceder sin iniciar sesion. osea que se borre todo. 
+-el login siempre debe pedir el ingreso de usuario y contraseña, o huella dactilar o rostro.

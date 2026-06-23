@@ -52,8 +52,8 @@ class LoginActivity : AppCompatActivity() {
             binding.btnAction.text = "Ingresar"
             binding.tvToggleMode.text = "¿No tienes una cuenta? Regístrate"
             
-            // Show biometric option if a previous session exists
-            val savedUser = securityManager.getSecureData("session_username")
+            // Show biometric option if a previous registration/login exists
+            val savedUser = securityManager.getSecureData("last_logged_in_user")
             if (savedUser.isNotEmpty() && securityManager.isBiometricAvailable()) {
                 binding.llBiometric.visibility = View.VISIBLE
             } else {
@@ -145,6 +145,7 @@ class LoginActivity : AppCompatActivity() {
             if (foundUser != null && foundUser.passwordHash == inputHash) {
                 // Successful login
                 securityManager.storeSecureData("session_username", foundUser.username)
+                securityManager.storeSecureData("last_logged_in_user", foundUser.username)
                 
                 startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
                 finish()
@@ -190,8 +191,9 @@ class LoginActivity : AppCompatActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     
-                    val savedUser = securityManager.getSecureData("session_username")
-                    if (savedUser.isNotEmpty()) {
+                    val lastUser = securityManager.getSecureData("last_logged_in_user")
+                    if (lastUser.isNotEmpty()) {
+                        securityManager.storeSecureData("session_username", lastUser)
                         binding.tvBiometricHint.text = "¡Autenticación exitosa!"
                         binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
                         

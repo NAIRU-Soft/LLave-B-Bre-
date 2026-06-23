@@ -33,6 +33,41 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var keysAdapter: KeysAdapter
     private var currentUser: String = ""
 
+    private val logoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val logoutRunnable = Runnable {
+        autoLogout()
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        resetInactivityTimer()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resetInactivityTimer()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        logoutHandler.removeCallbacks(logoutRunnable)
+    }
+
+    private fun resetInactivityTimer() {
+        logoutHandler.removeCallbacks(logoutRunnable)
+        logoutHandler.postDelayed(logoutRunnable, 5 * 60 * 1000) // 5 minutes
+    }
+
+    private fun autoLogout() {
+        Toast.makeText(this, "Sesión cerrada por inactividad", Toast.LENGTH_LONG).show()
+        performManualLogout()
+    }
+
+    private fun performManualLogout() {
+        securityManager.storeSecureData("session_username", "")
+        navigateToLogin()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardBinding.inflate(layoutInflater)
@@ -329,6 +364,7 @@ class DashboardActivity : AppCompatActivity() {
                 if (storageManager.updateUser(currentUser, updatedUser)) {
                     currentUser = newUsername
                     securityManager.storeSecureData("session_username", newUsername)
+                    securityManager.storeSecureData("last_logged_in_user", newUsername)
                     Toast.makeText(this, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
                     switchTab(true)
                 } else {
@@ -392,6 +428,7 @@ class DashboardActivity : AppCompatActivity() {
             .setPositiveButton("Eliminar permanentemente") { _, _ ->
                 if (storageManager.deleteUser(currentUser)) {
                     securityManager.storeSecureData("session_username", "")
+                    securityManager.storeSecureData("last_logged_in_user", "")
                     Toast.makeText(this, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
                     navigateToLogin()
                 }
