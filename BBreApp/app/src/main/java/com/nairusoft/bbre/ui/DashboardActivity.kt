@@ -1,12 +1,16 @@
 package com.nairusoft.bbre.ui
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -44,6 +48,11 @@ class DashboardActivity : AppCompatActivity() {
     private val logoutRunnable = Runnable {
         autoLogout()
     }
+    private val clipboardHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var lastCopiedKey: String? = null
+    private val clearClipboardRunnable = Runnable {
+        clearCopiedClipboardIfUnchanged()
+    }
 
     override fun onUserInteraction() {
         super.onUserInteraction()
@@ -71,6 +80,7 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         logoutHandler.removeCallbacks(logoutRunnable)
+        clipboardHandler.removeCallbacks(clearClipboardRunnable)
         if (isFinishing && !isChangingConfigurations) {
             clearInMemoryAndStoredSession()
         }
@@ -131,6 +141,10 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
         securityManager = SecurityManager.getInstance(this)
         storageManager = StorageManager.getInstance(this)
@@ -263,8 +277,35 @@ class DashboardActivity : AppCompatActivity() {
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("BBre Key", text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Llave copiada: $text", Toast.LENGTH_SHORT).show()
+        lastCopiedKey = text
+        clipboardHandler.removeCallbacks(clearClipboardRunnable)
+        clipboardHandler.postDelayed(clearClipboardRunnable, 45_000L)
+        Toast.makeText(this, "Llave copiada al portapapeles (se limpiará en 45 s)", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearCopiedClipboardIfUnchanged() {
+        val expected = lastCopiedKey ?: return
+        lastCopiedKey = null
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val currentText = clipboard.primaryClip?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)?.text?.toString()
+            if (currentText == expected) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    clipboard.clearPrimaryClip()
+                } else {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
+                }
+            }
+        } catch (_: Exception) {
+            // Clipboard access may be restricted while app is in background on Android 10+
+        }
     }
 
     private fun showKeyInfoDialog(key: UserKey) {
