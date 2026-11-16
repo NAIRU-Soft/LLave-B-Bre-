@@ -2,6 +2,7 @@ package com.nairusoft.bbre.security
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -9,11 +10,11 @@ import androidx.security.crypto.MasterKey
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
 import java.security.MessageDigest
+import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.IvParameterSpec
 import kotlin.concurrent.thread
 
 /**
@@ -28,6 +29,11 @@ class SecurityManager(private val context: Context) {
         private const val GCM_IV_LENGTH = 12
         private const val GCM_TAG_LENGTH = 128
         private const val PREF_NAME = "bbre_secure_prefs"
+        const val BIOMETRIC_KEY_ALIAS = "bbre_biometric_key"
+        private const val KEY_BIOMETRIC_TOKEN_ENC = "biometric_token_enc"
+        private const val KEY_BIOMETRIC_TOKEN_IV = "biometric_token_iv"
+        private const val KEY_BIOMETRIC_NONCE_HASH = "biometric_nonce_hash"
+        private const val KEY_BIOMETRIC_OWNER = "biometric_owner"
         
         @Volatile
         private var instance: SecurityManager? = null
@@ -63,23 +69,41 @@ class SecurityManager(private val context: Context) {
         ) as EncryptedSharedPreferences
     }
 
-    /**
-     * Check if device supports biometric authentication
-     */
-    fun isBiometricAvailable(): Boolean {
-        val biometricManager = BiometricManager.from(context)
-        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-        
-        return biometricManager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+    sealed class BiometricCipherResult {
+        data class Ready(val cipher: Cipher) : BiometricCipherResult()
+        object KeyInvalidated : BiometricCipherResult()
+        object Unavailable : BiometricCipherResult()
     }
 
     /**
-     * Generate a secure key in Android Keystore with biometric requirement
+     * Check if device supports strong (Class 3) biometric authentication compatible with CryptoObject.
      */
-    fun generateBiometricKey(alias: String): SecretKey? {
+    fun isBiometricAvailable(): Boolean {
+        val biometricManager = BiometricManager.from(context)
+        return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /**
+     * Returns true when device only offers Class 2 (weak) biometrics, such as basic face unlock.
+     */
+    fun isWeakBiometricOnly(): Boolean {
+        if (isBiometricAvailable()) return false
+        val biometricManager = BiometricManager.from(context)
+        return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /**
+     * Get or generate a secure key in Android Keystore with strong biometric requirement.
+     * Does NOT overwrite an existing key unless forceRecreate is true.
+     */
+    fun generateBiometricKey(alias: String, forceRecreate: Boolean = false): SecretKey? {
         return try {
-            if (keyStore.containsAlias(alias)) {
+            if (!forceRecreate && keyStore.containsAlias(alias)) {
+                return getSecretKey(alias)
+            }
+            if (forceRecreate && keyStore.containsAlias(alias)) {
                 keyStore.deleteEntry(alias)
             }
 
@@ -104,6 +128,130 @@ class SecurityManager(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    fun hasBiometricEnrollmentFor(username: String): Boolean {
+        if (username.isEmpty() || !isBiometricAvailable()) return false
+        val owner = getSecureData(KEY_BIOMETRIC_OWNER)
+        val enc = getSecureData(KEY_BIOMETRIC_TOKEN_ENC)
+        val iv = getSecureData(KEY_BIOMETRIC_TOKEN_IV)
+        val nonceHash = getSecureData(KEY_BIOMETRIC_NONCE_HASH)
+        return try {
+            owner.equals(username, ignoreCase = true) &&
+                enc.isNotEmpty() &&
+                iv.isNotEmpty() &&
+                nonceHash.isNotEmpty() &&
+                keyStore.containsAlias(BIOMETRIC_KEY_ALIAS)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun createBiometricEncryptCipher(alias: String = BIOMETRIC_KEY_ALIAS): BiometricCipherResult {
+        return try {
+            val key = generateBiometricKey(alias, forceRecreate = false)
+                ?: return BiometricCipherResult.Unavailable
+            val cipher = Cipher.getInstance(TRANSFORMATION_AES)
+            try {
+                cipher.init(Cipher.ENCRYPT_MODE, key)
+                BiometricCipherResult.Ready(cipher)
+            } catch (_: KeyPermanentlyInvalidatedException) {
+                val freshKey = generateBiometricKey(alias, forceRecreate = true)
+                    ?: return BiometricCipherResult.Unavailable
+                val freshCipher = Cipher.getInstance(TRANSFORMATION_AES)
+                freshCipher.init(Cipher.ENCRYPT_MODE, freshKey)
+                BiometricCipherResult.Ready(freshCipher)
+            }
+        } catch (_: Exception) {
+            BiometricCipherResult.Unavailable
+        }
+    }
+
+    fun createBiometricDecryptCipher(alias: String = BIOMETRIC_KEY_ALIAS): BiometricCipherResult {
+        val ivBase64 = getSecureData(KEY_BIOMETRIC_TOKEN_IV)
+        if (ivBase64.isEmpty()) return BiometricCipherResult.Unavailable
+        return try {
+            val key = getSecretKey(alias) ?: return BiometricCipherResult.KeyInvalidated
+            val ivBytes = android.util.Base64.decode(ivBase64, android.util.Base64.NO_WRAP)
+            val cipher = Cipher.getInstance(TRANSFORMATION_AES)
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_LENGTH, ivBytes))
+            BiometricCipherResult.Ready(cipher)
+        } catch (_: KeyPermanentlyInvalidatedException) {
+            BiometricCipherResult.KeyInvalidated
+        } catch (_: Exception) {
+            BiometricCipherResult.Unavailable
+        }
+    }
+
+    fun saveBiometricEnrollment(username: String, authenticatedCipher: Cipher): Boolean {
+        return try {
+            val nonceBytes = ByteArray(32)
+            SecureRandom().nextBytes(nonceBytes)
+            val nonce = android.util.Base64.encodeToString(nonceBytes, android.util.Base64.NO_WRAP)
+            val payload = "$username|$nonce"
+            val encryptedBytes = authenticatedCipher.doFinal(payload.toByteArray(StandardCharsets.UTF_8))
+
+            storeSecureData(
+                KEY_BIOMETRIC_TOKEN_ENC,
+                android.util.Base64.encodeToString(encryptedBytes, android.util.Base64.NO_WRAP)
+            )
+            storeSecureData(
+                KEY_BIOMETRIC_TOKEN_IV,
+                android.util.Base64.encodeToString(authenticatedCipher.iv, android.util.Base64.NO_WRAP)
+            )
+            storeSecureData(KEY_BIOMETRIC_NONCE_HASH, hashData(nonce))
+            storeSecureData(KEY_BIOMETRIC_OWNER, username)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun verifyBiometricDecryption(authenticatedCipher: Cipher): String? {
+        return try {
+            val encBase64 = getSecureData(KEY_BIOMETRIC_TOKEN_ENC)
+            val storedNonceHash = getSecureData(KEY_BIOMETRIC_NONCE_HASH)
+            val storedOwner = getSecureData(KEY_BIOMETRIC_OWNER)
+            if (encBase64.isEmpty() || storedNonceHash.isEmpty() || storedOwner.isEmpty()) {
+                return null
+            }
+
+            val encBytes = android.util.Base64.decode(encBase64, android.util.Base64.NO_WRAP)
+            val plainText = String(authenticatedCipher.doFinal(encBytes), StandardCharsets.UTF_8)
+            val separatorIndex = plainText.indexOf('|')
+            if (separatorIndex <= 0) return null
+
+            val decryptedUser = plainText.substring(0, separatorIndex)
+            val decryptedNonce = plainText.substring(separatorIndex + 1)
+            val candidateHash = hashData(decryptedNonce).toByteArray(StandardCharsets.UTF_8)
+            val expectedHash = storedNonceHash.toByteArray(StandardCharsets.UTF_8)
+
+            if (decryptedUser.equals(storedOwner, ignoreCase = true) &&
+                MessageDigest.isEqual(candidateHash, expectedHash)
+            ) {
+                decryptedUser
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun clearBiometricEnrollment(alias: String = BIOMETRIC_KEY_ALIAS) {
+        removeSecureData(KEY_BIOMETRIC_TOKEN_ENC)
+        removeSecureData(KEY_BIOMETRIC_TOKEN_IV)
+        removeSecureData(KEY_BIOMETRIC_NONCE_HASH)
+        removeSecureData(KEY_BIOMETRIC_OWNER)
+        try {
+            if (keyStore.containsAlias(alias)) {
+                keyStore.deleteEntry(alias)
+            }
+        } catch (_: Exception) {
+            // Best-effort cleanup
         }
     }
 

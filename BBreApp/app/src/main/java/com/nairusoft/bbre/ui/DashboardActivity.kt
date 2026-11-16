@@ -477,10 +477,14 @@ class DashboardActivity : AppCompatActivity() {
                     binding.tilSettingsPassword.error = null
                     when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
                         is StorageOpResult.Success -> {
+                            val usernameChanged = !currentUser.equals(newUsername, ignoreCase = true)
                             currentUser = newUsername
                             sessionManager.updateActiveUsername(newUsername)
                             securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, newUsername)
                             securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, newUsername)
+                            if (usernameChanged) {
+                                securityManager.clearBiometricEnrollment()
+                            }
                             Toast.makeText(this@DashboardActivity, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
                             switchTab(true)
                         }
@@ -553,6 +557,7 @@ class DashboardActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     when (val result = storageManager.deleteUser(currentUser)) {
                         is StorageOpResult.Success -> {
+                            securityManager.clearBiometricEnrollment()
                             securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
                             Toast.makeText(this@DashboardActivity, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
                             performManualLogout()

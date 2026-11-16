@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -28,7 +29,6 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var securityManager: SecurityManager
     private lateinit var storageManager: StorageManager
     private val sessionManager: SessionManager = SessionManager.getInstance()
-    private val BIOMETRIC_KEY_ALIAS = "bbre_biometric_key"
     
     private var isLoginMode = true
 
@@ -59,10 +59,18 @@ class LoginActivity : AppCompatActivity() {
             binding.btnAction.text = "Ingresar"
             binding.tvToggleMode.text = "¿No tienes una cuenta? Regístrate"
             
-            // Show biometric option if a previous registration/login exists
-            val savedUser = securityManager.getSecureData("last_logged_in_user")
-            if (savedUser.isNotEmpty() && securityManager.isBiometricAvailable()) {
+            // Show biometric option only when strong biometric enrollment exists for last logged user
+            val savedUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
+            if (savedUser.isNotEmpty() && securityManager.hasBiometricEnrollmentFor(savedUser)) {
                 binding.llBiometric.visibility = View.VISIBLE
+                binding.btnBiometric.visibility = View.VISIBLE
+                binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
+                binding.tvBiometricHint.setTextColor(getColor(R.color.gray))
+            } else if (savedUser.isNotEmpty() && securityManager.isWeakBiometricOnly()) {
+                binding.llBiometric.visibility = View.VISIBLE
+                binding.btnBiometric.visibility = View.GONE
+                binding.tvBiometricHint.text = "Este dispositivo solo tiene biometría débil; usa tu contraseña"
+                binding.tvBiometricHint.setTextColor(getColor(R.color.gray_dark))
             } else {
                 binding.llBiometric.visibility = View.GONE
             }
@@ -88,15 +96,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupBiometricButton() {
-        if (securityManager.isBiometricAvailable()) {
-            // Generate biometric key if not exists
-            lifecycleScope.launch {
-                securityManager.generateBiometricKey(BIOMETRIC_KEY_ALIAS)
-            }
-            
-            binding.btnBiometric.setOnClickListener {
-                showBiometricPrompt()
-            }
+        binding.btnBiometric.setOnClickListener {
+            showBiometricPrompt()
         }
     }
 
@@ -161,14 +162,25 @@ class LoginActivity : AppCompatActivity() {
                             storageManager.updateUser(foundUser.username, migratedUser)
                         }
 
-                        // Successful login
+                        // Successful password login
                         sessionManager.startSession(foundUser.username)
                         securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, foundUser.username)
                         securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, foundUser.username)
 
-                        startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
-                        finish()
-                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                        // Clear stale biometric binding if a different account logged in
+                        if (!securityManager.hasBiometricEnrollmentFor(foundUser.username)) {
+                            securityManager.clearBiometricEnrollment()
+                        }
+
+                        if (securityManager.isBiometricAvailable() &&
+                            !securityManager.hasBiometricEnrollmentFor(foundUser.username)
+                        ) {
+                            binding.progressBar.visibility = View.GONE
+                            binding.btnAction.isEnabled = true
+                            promptBiometricEnrollment(foundUser.username)
+                        } else {
+                            navigateToDashboard()
+                        }
                     } else {
                         binding.progressBar.visibility = View.GONE
                         binding.btnAction.isEnabled = true
@@ -210,36 +222,147 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun showBiometricPrompt() {
+    private fun navigateToDashboard() {
+        startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+        finish()
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+    }
+
+    private fun promptBiometricEnrollment(username: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Activar ingreso biométrico")
+            .setMessage("¿Deseas vincular tu huella o biometría fuerte para ingresar como $username?")
+            .setCancelable(false)
+            .setPositiveButton("Activar") { _, _ ->
+                showBiometricEnrollmentPrompt(username)
+            }
+            .setNegativeButton("Ahora no") { _, _ ->
+                navigateToDashboard()
+            }
+            .show()
+    }
+
+    private fun showBiometricEnrollmentPrompt(username: String) {
+        val cipherResult = securityManager.createBiometricEncryptCipher()
+        val cipher = when (cipherResult) {
+            is SecurityManager.BiometricCipherResult.Ready -> cipherResult.cipher
+            is SecurityManager.BiometricCipherResult.KeyInvalidated,
+            is SecurityManager.BiometricCipherResult.Unavailable -> {
+                Toast.makeText(this, "No se pudo inicializar la biometría fuerte", Toast.LENGTH_SHORT).show()
+                navigateToDashboard()
+                return
+            }
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
-        
-        val biometricPrompt = BiometricPrompt(this, executor,
+        val biometricPrompt = BiometricPrompt(
+            this,
+            executor,
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
-                    
-                    val lastUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
-                    if (lastUser.isNotEmpty()) {
-                        sessionManager.startSession(lastUser)
-                        securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, lastUser)
-                        binding.tvBiometricHint.text = "¡Autenticación exitosa!"
-                        binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
-                        
-                        lifecycleScope.launch {
-                            delay(800)
-                            startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
-                            finish()
+                    val authCipher = result.cryptoObject?.cipher
+                    if (authCipher != null && securityManager.saveBiometricEnrollment(username, authCipher)) {
+                        Toast.makeText(this@LoginActivity, "Biometría activada para $username", Toast.LENGTH_SHORT).show()
+                    }
+                    navigateToDashboard()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    navigateToDashboard()
+                }
+            }
+        )
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(getString(R.string.security_biometric_title))
+            .setSubtitle("Confirma tu biometría para vincularla a tu cuenta")
+            .setNegativeButtonText("Cancelar")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+
+        biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
+    }
+
+    private fun showBiometricPrompt() {
+        val lastUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
+        if (lastUser.isEmpty() || !securityManager.hasBiometricEnrollmentFor(lastUser)) {
+            binding.tvBiometricHint.text = "Inicia sesión con contraseña primero"
+            binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
+            return
+        }
+
+        val cipher = when (val cipherResult = securityManager.createBiometricDecryptCipher()) {
+            is SecurityManager.BiometricCipherResult.Ready -> cipherResult.cipher
+            is SecurityManager.BiometricCipherResult.KeyInvalidated -> {
+                securityManager.clearBiometricEnrollment()
+                binding.btnBiometric.visibility = View.GONE
+                binding.tvBiometricHint.text = "La biometría del dispositivo cambió. Inicia con contraseña para reactivarla."
+                binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+                return
+            }
+            is SecurityManager.BiometricCipherResult.Unavailable -> {
+                binding.tvBiometricHint.text = "Biometría no disponible; usa tu contraseña"
+                binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
+                return
+            }
+        }
+
+        val executor = ContextCompat.getMainExecutor(this)
+        val biometricPrompt = BiometricPrompt(
+            this,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+
+                    val authCipher = result.cryptoObject?.cipher
+                    val decryptedUser = authCipher?.let { securityManager.verifyBiometricDecryption(it) }
+                    if (decryptedUser.isNullOrEmpty()) {
+                        securityManager.clearBiometricEnrollment()
+                        binding.btnBiometric.visibility = View.GONE
+                        binding.tvBiometricHint.text = "Credencial biométrica inválida. Usa tu contraseña."
+                        binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+                        return
+                    }
+
+                    lifecycleScope.launch {
+                        when (val usersResult = storageManager.getUsersResult()) {
+                            is StorageLoadResult.Error -> {
+                                binding.tvBiometricHint.text = usersResult.message
+                                binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+                            }
+                            is StorageLoadResult.Success -> {
+                                val existingUser = usersResult.data.find {
+                                    it.username.equals(decryptedUser, ignoreCase = true)
+                                }
+                                if (existingUser != null) {
+                                    sessionManager.startSession(existingUser.username)
+                                    securityManager.storeSecureData(
+                                        SessionManager.KEY_SESSION_USERNAME,
+                                        existingUser.username
+                                    )
+                                    binding.tvBiometricHint.text = "¡Autenticación exitosa!"
+                                    binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
+                                    delay(300)
+                                    navigateToDashboard()
+                                } else {
+                                    securityManager.clearBiometricEnrollment()
+                                    binding.btnBiometric.visibility = View.GONE
+                                    binding.tvBiometricHint.text = "El usuario ya no existe. Inicia sesión o regístrate."
+                                    binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+                                }
+                            }
                         }
-                    } else {
-                        binding.tvBiometricHint.text = "Inicia sesión con contraseña primero"
-                        binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
                     }
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
                     if (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    ) {
                         return
                     }
                     binding.tvBiometricHint.text = "Error: $errString"
@@ -248,20 +371,20 @@ class LoginActivity : AppCompatActivity() {
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
-                    binding.tvBiometricHint.text = "Huella no reconocida. Intenta de nuevo."
+                    binding.tvBiometricHint.text = "Biometría no reconocida. Intenta de nuevo."
                     binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
                 }
-            })
+            }
+        )
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.security_biometric_title))
             .setSubtitle(getString(R.string.security_biometric_subtitle))
             .setNegativeButtonText("Usar Contraseña")
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build()
 
-        biometricPrompt.authenticate(promptInfo)
+        biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
     }
 
     override fun onBackPressed() {
