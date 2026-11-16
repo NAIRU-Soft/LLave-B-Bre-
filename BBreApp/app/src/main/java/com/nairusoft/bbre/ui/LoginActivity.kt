@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
 import com.nairusoft.bbre.security.StorageOpResult
@@ -27,6 +28,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private lateinit var securityManager: SecurityManager
     private lateinit var storageManager: StorageManager
+    private val sessionManager: SessionManager = SessionManager.getInstance()
     private val BIOMETRIC_KEY_ALIAS = "bbre_biometric_key"
     
     private var isLoginMode = true
@@ -38,6 +40,10 @@ class LoginActivity : AppCompatActivity() {
 
         securityManager = SecurityManager.getInstance(this)
         storageManager = StorageManager.getInstance(this)
+
+        // Ensure no stale session remains when entering LoginActivity
+        sessionManager.clearSession()
+        securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
 
         updateModeUI()
         setupToggleMode()
@@ -152,8 +158,9 @@ class LoginActivity : AppCompatActivity() {
 
                     if (foundUser != null && foundUser.passwordHash == inputHash) {
                         // Successful login
-                        securityManager.storeSecureData("session_username", foundUser.username)
-                        securityManager.storeSecureData("last_logged_in_user", foundUser.username)
+                        sessionManager.startSession(foundUser.username)
+                        securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, foundUser.username)
+                        securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, foundUser.username)
 
                         startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
                         finish()
@@ -208,9 +215,10 @@ class LoginActivity : AppCompatActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     
-                    val lastUser = securityManager.getSecureData("last_logged_in_user")
+                    val lastUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
                     if (lastUser.isNotEmpty()) {
-                        securityManager.storeSecureData("session_username", lastUser)
+                        sessionManager.startSession(lastUser)
+                        securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, lastUser)
                         binding.tvBiometricHint.text = "¡Autenticación exitosa!"
                         binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
                         

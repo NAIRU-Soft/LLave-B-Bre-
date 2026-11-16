@@ -18,6 +18,7 @@ import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
 import com.nairusoft.bbre.security.StorageOpResult
@@ -34,8 +35,11 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
     private lateinit var securityManager: SecurityManager
     private lateinit var storageManager: StorageManager
+    private val sessionManager: SessionManager = SessionManager.getInstance()
     private lateinit var keysAdapter: KeysAdapter
     private var currentUser: String = ""
+    private var isRedirectingToLogin = false
+    private var activeDialog: AlertDialog? = null
 
     private val logoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val logoutRunnable = Runnable {
@@ -44,47 +48,106 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onUserInteraction() {
         super.onUserInteraction()
-        resetInactivityTimer()
+        if (isRedirectingToLogin) return
+        sessionManager.recordActivity()
+        scheduleRemainingTimeout()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!ensureValidSessionOrLogout()) return
     }
 
     override fun onResume() {
         super.onResume()
-        resetInactivityTimer()
+        if (!ensureValidSessionOrLogout()) return
+        scheduleRemainingTimeout()
     }
 
     override fun onPause() {
         super.onPause()
+        // Keep lastActivityElapsedMs in SessionManager; only stop foreground handler
         logoutHandler.removeCallbacks(logoutRunnable)
     }
 
-    private fun resetInactivityTimer() {
+    override fun onDestroy() {
         logoutHandler.removeCallbacks(logoutRunnable)
-        logoutHandler.postDelayed(logoutRunnable, 5 * 60 * 1000) // 5 minutes
+        if (isFinishing && !isChangingConfigurations) {
+            clearInMemoryAndStoredSession()
+        }
+        super.onDestroy()
+    }
+
+    private fun scheduleRemainingTimeout() {
+        logoutHandler.removeCallbacks(logoutRunnable)
+        val remaining = sessionManager.remainingTimeoutMs()
+        if (remaining <= 0L) {
+            autoLogout()
+        } else {
+            logoutHandler.postDelayed(logoutRunnable, remaining)
+        }
+    }
+
+    private fun ensureValidSessionOrLogout(): Boolean {
+        if (isRedirectingToLogin) return false
+        val storedUser = securityManager.getSecureData(SessionManager.KEY_SESSION_USERNAME)
+        val active = sessionManager.isSessionActive()
+        val matchesStored = storedUser.isNotEmpty() &&
+            sessionManager.activeUsername.equals(storedUser, ignoreCase = true)
+        if (!active || !matchesStored) {
+            autoLogout()
+            return false
+        }
+        return true
     }
 
     private fun autoLogout() {
+        if (isRedirectingToLogin) return
         Toast.makeText(this, "Sesión cerrada por inactividad", Toast.LENGTH_LONG).show()
         performManualLogout()
     }
 
+    private fun clearInMemoryAndStoredSession() {
+        logoutHandler.removeCallbacks(logoutRunnable)
+        activeDialog?.dismiss()
+        activeDialog = null
+        sessionManager.clearSession()
+        securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
+        currentUser = ""
+        if (::keysAdapter.isInitialized) {
+            keysAdapter.updateData(emptyList())
+        }
+        if (::binding.isInitialized) {
+            binding.etSettingsUsername.text?.clear()
+            binding.etSettingsPassword.text?.clear()
+        }
+    }
+
     private fun performManualLogout() {
-        securityManager.storeSecureData("session_username", "")
+        if (isRedirectingToLogin) return
+        isRedirectingToLogin = true
+        clearInMemoryAndStoredSession()
         navigateToLogin()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityDashboardBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
         securityManager = SecurityManager.getInstance(this)
         storageManager = StorageManager.getInstance(this)
 
-        currentUser = securityManager.getSecureData("session_username")
-        if (currentUser.isEmpty()) {
-            navigateToLogin()
+        val storedUser = securityManager.getSecureData(SessionManager.KEY_SESSION_USERNAME)
+        if (storedUser.isEmpty() ||
+            !sessionManager.isSessionActive() ||
+            !sessionManager.activeUsername.equals(storedUser, ignoreCase = true)
+        ) {
+            performManualLogout()
             return
         }
+        currentUser = storedUser
+
+        binding = ActivityDashboardBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         setupToolbar()
         setupBottomNavigation()
@@ -98,7 +161,10 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun navigateToLogin() {
-        startActivity(Intent(this, LoginActivity::class.java))
+        val intent = Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
         finish()
     }
 
@@ -203,7 +269,8 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showKeyInfoDialog(key: UserKey) {
-        AlertDialog.Builder(this)
+        activeDialog?.dismiss()
+        activeDialog = AlertDialog.Builder(this)
             .setTitle("Información de Llave")
             .setMessage(
                 "• Creado por: ${if(key.createdBy.isEmpty()) currentUser else key.createdBy}\n" +
@@ -220,10 +287,12 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showKeyDialog(existingKey: UserKey?) {
+        activeDialog?.dismiss()
         val dialogBinding = DialogKeyBinding.inflate(LayoutInflater.from(this))
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+        activeDialog = dialog
 
         dialogBinding.tvDialogTitle.text = if (existingKey == null) "Agregar Nueva Llave" else "Modificar Llave"
 
@@ -351,7 +420,8 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showDeleteKeyConfirmation(userKey: UserKey) {
-        AlertDialog.Builder(this)
+        activeDialog?.dismiss()
+        activeDialog = AlertDialog.Builder(this)
             .setTitle("Eliminar Llave")
             .setMessage("¿Estás seguro de que deseas eliminar esta llave? Esta acción no se puede deshacer.")
             .setPositiveButton("Eliminar") { _, _ ->
@@ -411,8 +481,9 @@ class DashboardActivity : AppCompatActivity() {
                     when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
                         is StorageOpResult.Success -> {
                             currentUser = newUsername
-                            securityManager.storeSecureData("session_username", newUsername)
-                            securityManager.storeSecureData("last_logged_in_user", newUsername)
+                            sessionManager.updateActiveUsername(newUsername)
+                            securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, newUsername)
+                            securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, newUsername)
                             Toast.makeText(this@DashboardActivity, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
                             switchTab(true)
                         }
@@ -429,8 +500,7 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         binding.btnLogout.setOnClickListener {
-            securityManager.storeSecureData("session_username", "")
-            navigateToLogin()
+            performManualLogout()
         }
 
         binding.btnDeleteAccount.setOnClickListener {
@@ -464,7 +534,8 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showSystemInfoDialog() {
-        AlertDialog.Builder(this)
+        activeDialog?.dismiss()
+        activeDialog = AlertDialog.Builder(this)
             .setTitle("Información del Sistema BBre")
             .setMessage(
                 "• Nombre de la App: BBre - NairuSoft\n" +
@@ -477,17 +548,17 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showDeleteAccountConfirmation() {
-        AlertDialog.Builder(this)
+        activeDialog?.dismiss()
+        activeDialog = AlertDialog.Builder(this)
             .setTitle("Eliminar Cuenta")
             .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta? Se eliminarán todas tus llaves y tu perfil. Esta acción no se puede deshacer.")
             .setPositiveButton("Eliminar permanentemente") { _, _ ->
                 lifecycleScope.launch {
                     when (val result = storageManager.deleteUser(currentUser)) {
                         is StorageOpResult.Success -> {
-                            securityManager.storeSecureData("session_username", "")
-                            securityManager.storeSecureData("last_logged_in_user", "")
+                            securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
                             Toast.makeText(this@DashboardActivity, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
-                            navigateToLogin()
+                            performManualLogout()
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
