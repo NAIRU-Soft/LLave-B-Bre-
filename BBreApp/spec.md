@@ -222,3 +222,11 @@ fix 0.0.6
 necesito que se cierre sesion si queda abierta la sesion o 5 minutos inactivos, al igual que se cierre la sesión. 
 -cuando se cierra sesion, se debe limpiar la sesion de usuario, para que no se pueda acceder sin iniciar sesion. osea que se borre todo. 
 -el login siempre debe pedir el ingreso de usuario y contraseña, o huella dactilar o rostro.
+
+feature 0.0.1
+necesito que leas de este archivo
+.agents\Gauntlet.md y revisalo, y hazlo por qué 
+necesito modificar esta aplicación y recuerda que deseo que revises este archivo, 
+y que pongas atención a este archivo:
+.gitignore 
+donde evito que .agents y Test sean incluidos.
