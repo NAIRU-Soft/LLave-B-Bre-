@@ -154,19 +154,26 @@ class SecurityManager(private val context: Context) {
      * Encrypt data using AES-GCM
      */
     fun encrypt(data: String, alias: String): ByteArray? {
+        return encryptResult(data, alias).getOrNull()
+    }
+
+    /**
+     * Encrypt data using AES-GCM returning a Result
+     */
+    fun encryptResult(data: String, alias: String): Result<ByteArray> {
         return try {
-            val key = getSecretKey(alias) ?: return null
+            val key = getSecretKey(alias)
+                ?: return Result.failure(IllegalStateException("Clave de cifrado no disponible: $alias"))
             val cipher = Cipher.getInstance(TRANSFORMATION_AES)
             cipher.init(Cipher.ENCRYPT_MODE, key)
-            
+
             val iv = cipher.iv
             val encryptedData = cipher.doFinal(data.toByteArray(StandardCharsets.UTF_8))
-            
+
             // Combine IV and encrypted data
-            iv + encryptedData
+            Result.success(iv + encryptedData)
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            Result.failure(e)
         }
     }
 
@@ -174,20 +181,34 @@ class SecurityManager(private val context: Context) {
      * Encrypt data and return Base64 string
      */
     fun encryptToBase64(data: String, alias: String): String? {
-        val encrypted = encrypt(data, alias) ?: return null
-        return android.util.Base64.encodeToString(encrypted, android.util.Base64.DEFAULT)
+        return encryptToBase64Result(data, alias).getOrNull()
+    }
+
+    /**
+     * Encrypt data and return Base64 string as Result
+     */
+    fun encryptToBase64Result(data: String, alias: String): Result<String> {
+        return encryptResult(data, alias).map { encrypted ->
+            android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
+        }
     }
 
     /**
      * Decrypt data from Base64 string
      */
     fun decryptFromBase64(base64Data: String, alias: String): String? {
+        return decryptFromBase64Result(base64Data, alias).getOrNull()
+    }
+
+    /**
+     * Decrypt data from Base64 string returning a Result
+     */
+    fun decryptFromBase64Result(base64Data: String, alias: String): Result<String> {
         return try {
             val encryptedData = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-            decrypt(encryptedData, alias)
+            decryptResult(encryptedData, alias)
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            Result.failure(e)
         }
     }
 
@@ -195,22 +216,32 @@ class SecurityManager(private val context: Context) {
      * Decrypt data using AES-GCM
      */
     fun decrypt(encryptedData: ByteArray, alias: String): String? {
+        return decryptResult(encryptedData, alias).getOrNull()
+    }
+
+    /**
+     * Decrypt data using AES-GCM returning a Result
+     */
+    fun decryptResult(encryptedData: ByteArray, alias: String): Result<String> {
         return try {
-            val key = getSecretKey(alias) ?: return null
-            
+            if (encryptedData.size <= GCM_IV_LENGTH) {
+                return Result.failure(IllegalArgumentException("Datos cifrados inválidos o truncados"))
+            }
+            val key = getSecretKey(alias)
+                ?: return Result.failure(IllegalStateException("Clave de descifrado no disponible: $alias"))
+
             // Extract IV and encrypted data
             val iv = encryptedData.copyOfRange(0, GCM_IV_LENGTH)
             val actualData = encryptedData.copyOfRange(GCM_IV_LENGTH, encryptedData.size)
-            
+
             val cipher = Cipher.getInstance(TRANSFORMATION_AES)
             val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)
             cipher.init(Cipher.DECRYPT_MODE, key, spec)
-            
+
             val decryptedData = cipher.doFinal(actualData)
-            String(decryptedData, StandardCharsets.UTF_8)
+            Result.success(String(decryptedData, StandardCharsets.UTF_8))
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            Result.failure(e)
         }
     }
 

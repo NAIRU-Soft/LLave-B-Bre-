@@ -12,7 +12,9 @@ import androidx.lifecycle.lifecycleScope
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
+import com.nairusoft.bbre.security.StorageOpResult
 import com.nairusoft.bbre.security.User
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -137,23 +139,31 @@ class LoginActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             delay(1000) // Simulate network/crypto operation delay
-            
-            val users = storageManager.getUsers()
-            val foundUser = users.find { it.username.equals(username, ignoreCase = true) }
-            val inputHash = securityManager.hashData(password)
 
-            if (foundUser != null && foundUser.passwordHash == inputHash) {
-                // Successful login
-                securityManager.storeSecureData("session_username", foundUser.username)
-                securityManager.storeSecureData("last_logged_in_user", foundUser.username)
-                
-                startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
-                finish()
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-            } else {
-                binding.progressBar.visibility = View.GONE
-                binding.btnAction.isEnabled = true
-                binding.tilPassword.error = "Usuario o contraseña incorrectos"
+            when (val usersResult = storageManager.getUsersResult()) {
+                is StorageLoadResult.Error -> {
+                    binding.progressBar.visibility = View.GONE
+                    binding.btnAction.isEnabled = true
+                    Toast.makeText(this@LoginActivity, usersResult.message, Toast.LENGTH_LONG).show()
+                }
+                is StorageLoadResult.Success -> {
+                    val foundUser = usersResult.data.find { it.username.equals(username, ignoreCase = true) }
+                    val inputHash = securityManager.hashData(password)
+
+                    if (foundUser != null && foundUser.passwordHash == inputHash) {
+                        // Successful login
+                        securityManager.storeSecureData("session_username", foundUser.username)
+                        securityManager.storeSecureData("last_logged_in_user", foundUser.username)
+
+                        startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
+                        finish()
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    } else {
+                        binding.progressBar.visibility = View.GONE
+                        binding.btnAction.isEnabled = true
+                        binding.tilPassword.error = "Usuario o contraseña incorrectos"
+                    }
+                }
             }
         }
     }
@@ -167,18 +177,25 @@ class LoginActivity : AppCompatActivity() {
             
             val passwordHash = securityManager.hashData(password)
             val newUser = User(username, passwordHash)
-            val success = storageManager.addUser(newUser)
-            
+            val result = storageManager.addUser(newUser)
+
             binding.progressBar.visibility = View.GONE
             binding.btnAction.isEnabled = true
-            
-            if (success) {
-                Toast.makeText(this@LoginActivity, "Registro exitoso. Ahora puedes iniciar sesión.", Toast.LENGTH_LONG).show()
-                isLoginMode = true
-                updateModeUI()
-                binding.etPassword.text?.clear()
-            } else {
-                binding.tilUsername.error = "El usuario ya está registrado"
+
+            when (result) {
+                is StorageOpResult.Success -> {
+                    Toast.makeText(this@LoginActivity, "Registro exitoso. Ahora puedes iniciar sesión.", Toast.LENGTH_LONG).show()
+                    isLoginMode = true
+                    updateModeUI()
+                    binding.etPassword.text?.clear()
+                }
+                is StorageOpResult.Duplicate -> {
+                    binding.tilUsername.error = "El usuario ya está registrado"
+                }
+                is StorageOpResult.Error -> {
+                    Toast.makeText(this@LoginActivity, result.message, Toast.LENGTH_LONG).show()
+                }
+                is StorageOpResult.NotFound -> Unit
             }
         }
     }

@@ -12,14 +12,18 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
 import com.nairusoft.bbre.security.SecurityManager
+import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
+import com.nairusoft.bbre.security.StorageOpResult
 import com.nairusoft.bbre.security.User
 import com.nairusoft.bbre.security.UserKey
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -170,14 +174,24 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun loadKeysList() {
-        val keys = storageManager.getKeysForUser(currentUser)
-        if (keys.isEmpty()) {
-            binding.llEmptyState.visibility = View.VISIBLE
-            binding.rvKeys.visibility = View.GONE
-        } else {
-            binding.llEmptyState.visibility = View.GONE
-            binding.rvKeys.visibility = View.VISIBLE
-            keysAdapter.updateData(keys)
+        lifecycleScope.launch {
+            when (val result = storageManager.getKeysForUserResult(currentUser)) {
+                is StorageLoadResult.Success -> {
+                    val keys = result.data
+                    if (keys.isEmpty()) {
+                        binding.llEmptyState.visibility = View.VISIBLE
+                        binding.rvKeys.visibility = View.GONE
+                        keysAdapter.updateData(emptyList())
+                    } else {
+                        binding.llEmptyState.visibility = View.GONE
+                        binding.rvKeys.visibility = View.VISIBLE
+                        keysAdapter.updateData(keys)
+                    }
+                }
+                is StorageLoadResult.Error -> {
+                    Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -277,40 +291,58 @@ class DashboardActivity : AppCompatActivity() {
 
             val currentTime = getCurrentFormattedDate()
 
-            if (existingKey == null) {
-                // Add key
-                val newKey = UserKey(
-                    id = UUID.randomUUID().toString(),
-                    type = type,
-                    value = value,
-                    username = currentUser,
-                    createdBy = currentUser,
-                    creationDate = currentTime,
-                    modificationDate = currentTime,
-                    version = "0.0.1",
-                    description = description
-                )
-                if (storageManager.addKey(newKey)) {
-                    Toast.makeText(this, "Llave agregada exitosamente", Toast.LENGTH_SHORT).show()
-                    dialog.dismiss()
-                    loadKeysList()
+            lifecycleScope.launch {
+                if (existingKey == null) {
+                    // Add key
+                    val newKey = UserKey(
+                        id = UUID.randomUUID().toString(),
+                        type = type,
+                        value = value,
+                        username = currentUser,
+                        createdBy = currentUser,
+                        creationDate = currentTime,
+                        modificationDate = currentTime,
+                        version = "0.0.1",
+                        description = description
+                    )
+                    when (val result = storageManager.addKey(newKey)) {
+                        is StorageOpResult.Success -> {
+                            Toast.makeText(this@DashboardActivity, "Llave agregada exitosamente", Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                            loadKeysList()
+                        }
+                        is StorageOpResult.Duplicate -> {
+                            dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
+                        }
+                        is StorageOpResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageOpResult.NotFound -> Unit
+                    }
                 } else {
-                    dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
-                }
-            } else {
-                // Update key
-                val updatedKey = existingKey.copy(
-                    type = type, 
-                    value = value,
-                    description = description,
-                    modificationDate = currentTime
-                )
-                if (storageManager.updateKey(updatedKey)) {
-                    Toast.makeText(this, "Llave modificada exitosamente", Toast.LENGTH_SHORT).show()
-                    dialog.dismiss()
-                    loadKeysList()
-                } else {
-                    dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
+                    // Update key
+                    val updatedKey = existingKey.copy(
+                        type = type,
+                        value = value,
+                        description = description,
+                        modificationDate = currentTime
+                    )
+                    when (val result = storageManager.updateKey(updatedKey)) {
+                        is StorageOpResult.Success -> {
+                            Toast.makeText(this@DashboardActivity, "Llave modificada exitosamente", Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                            loadKeysList()
+                        }
+                        is StorageOpResult.Duplicate -> {
+                            dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
+                        }
+                        is StorageOpResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageOpResult.NotFound -> {
+                            Toast.makeText(this@DashboardActivity, "No se encontró la llave a modificar", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         }
@@ -323,9 +355,17 @@ class DashboardActivity : AppCompatActivity() {
             .setTitle("Eliminar Llave")
             .setMessage("¿Estás seguro de que deseas eliminar esta llave? Esta acción no se puede deshacer.")
             .setPositiveButton("Eliminar") { _, _ ->
-                if (storageManager.deleteKey(userKey.id)) {
-                    Toast.makeText(this, "Llave eliminada", Toast.LENGTH_SHORT).show()
-                    loadKeysList()
+                lifecycleScope.launch {
+                    when (val result = storageManager.deleteKey(userKey.id)) {
+                        is StorageOpResult.Success -> {
+                            Toast.makeText(this@DashboardActivity, "Llave eliminada", Toast.LENGTH_SHORT).show()
+                            loadKeysList()
+                        }
+                        is StorageOpResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageOpResult.NotFound, is StorageOpResult.Duplicate -> Unit
+                    }
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -345,30 +385,45 @@ class DashboardActivity : AppCompatActivity() {
             }
             binding.tilSettingsUsername.error = null
 
-            val users = storageManager.getUsers()
-            val foundUser = users.find { it.username.equals(currentUser, ignoreCase = true) }
-            
-            if (foundUser != null) {
-                val newHash = if (newPassword.isNotEmpty()) {
-                    if (newPassword.length < 8) {
-                        binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
-                        return@setOnClickListener
+            lifecycleScope.launch {
+                val users = when (val load = storageManager.getUsersResult()) {
+                    is StorageLoadResult.Success -> load.data
+                    is StorageLoadResult.Error -> {
+                        Toast.makeText(this@DashboardActivity, load.message, Toast.LENGTH_LONG).show()
+                        return@launch
                     }
-                    securityManager.hashData(newPassword)
-                } else {
-                    foundUser.passwordHash
                 }
-                binding.tilSettingsPassword.error = null
+                val foundUser = users.find { it.username.equals(currentUser, ignoreCase = true) }
 
-                val updatedUser = User(newUsername, newHash)
-                if (storageManager.updateUser(currentUser, updatedUser)) {
-                    currentUser = newUsername
-                    securityManager.storeSecureData("session_username", newUsername)
-                    securityManager.storeSecureData("last_logged_in_user", newUsername)
-                    Toast.makeText(this, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
-                    switchTab(true)
-                } else {
-                    binding.tilSettingsUsername.error = "El nombre de usuario ya está en uso"
+                if (foundUser != null) {
+                    val newHash = if (newPassword.isNotEmpty()) {
+                        if (newPassword.length < 8) {
+                            binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
+                            return@launch
+                        }
+                        securityManager.hashData(newPassword)
+                    } else {
+                        foundUser.passwordHash
+                    }
+                    binding.tilSettingsPassword.error = null
+
+                    val updatedUser = User(newUsername, newHash)
+                    when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
+                        is StorageOpResult.Success -> {
+                            currentUser = newUsername
+                            securityManager.storeSecureData("session_username", newUsername)
+                            securityManager.storeSecureData("last_logged_in_user", newUsername)
+                            Toast.makeText(this@DashboardActivity, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
+                            switchTab(true)
+                        }
+                        is StorageOpResult.Duplicate -> {
+                            binding.tilSettingsUsername.error = "El nombre de usuario ya está en uso"
+                        }
+                        is StorageOpResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, updateResult.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageOpResult.NotFound -> Unit
+                    }
                 }
             }
         }
@@ -426,11 +481,19 @@ class DashboardActivity : AppCompatActivity() {
             .setTitle("Eliminar Cuenta")
             .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta? Se eliminarán todas tus llaves y tu perfil. Esta acción no se puede deshacer.")
             .setPositiveButton("Eliminar permanentemente") { _, _ ->
-                if (storageManager.deleteUser(currentUser)) {
-                    securityManager.storeSecureData("session_username", "")
-                    securityManager.storeSecureData("last_logged_in_user", "")
-                    Toast.makeText(this, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
-                    navigateToLogin()
+                lifecycleScope.launch {
+                    when (val result = storageManager.deleteUser(currentUser)) {
+                        is StorageOpResult.Success -> {
+                            securityManager.storeSecureData("session_username", "")
+                            securityManager.storeSecureData("last_logged_in_user", "")
+                            Toast.makeText(this@DashboardActivity, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
+                            navigateToLogin()
+                        }
+                        is StorageOpResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageOpResult.NotFound, is StorageOpResult.Duplicate -> Unit
+                    }
                 }
             }
             .setNegativeButton("Cancelar", null)
