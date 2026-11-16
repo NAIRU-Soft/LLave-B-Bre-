@@ -16,7 +16,6 @@ import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
 import com.nairusoft.bbre.security.StorageOpResult
-import com.nairusoft.bbre.security.User
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -154,9 +153,14 @@ class LoginActivity : AppCompatActivity() {
                 }
                 is StorageLoadResult.Success -> {
                     val foundUser = usersResult.data.find { it.username.equals(username, ignoreCase = true) }
-                    val inputHash = securityManager.hashData(password)
 
-                    if (foundUser != null && foundUser.passwordHash == inputHash) {
+                    if (foundUser != null && securityManager.verifyUserPassword(foundUser, password)) {
+                        // Migrate legacy SHA-256 user to salted PBKDF2 on first successful login
+                        if (securityManager.needsPasswordMigration(foundUser)) {
+                            val migratedUser = securityManager.createUserCredentials(foundUser.username, password)
+                            storageManager.updateUser(foundUser.username, migratedUser)
+                        }
+
                         // Successful login
                         sessionManager.startSession(foundUser.username)
                         securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, foundUser.username)
@@ -182,8 +186,7 @@ class LoginActivity : AppCompatActivity() {
         lifecycleScope.launch {
             delay(1000)
             
-            val passwordHash = securityManager.hashData(password)
-            val newUser = User(username, passwordHash)
+            val newUser = securityManager.createUserCredentials(username, password)
             val result = storageManager.addUser(newUser)
 
             binding.progressBar.visibility = View.GONE

@@ -274,23 +274,61 @@ class SecurityManager(private val context: Context) {
     }
 
     /**
-     * Hash data using SHA-256
+     * Create salted PBKDF2 user credentials.
+     */
+    fun createUserCredentials(username: String, password: String): User {
+        val creds = PasswordHasher.createCredentials(password)
+        return User(
+            username = username,
+            passwordHash = creds.hashBase64,
+            salt = creds.saltBase64,
+            kdfAlgorithm = creds.algorithm,
+            kdfIterations = creds.iterations
+        )
+    }
+
+    /**
+     * Verify user password (supports PBKDF2 and legacy unsalted SHA-256 for migration).
+     */
+    fun verifyUserPassword(user: User, password: String): Boolean {
+        return PasswordHasher.verifyPassword(
+            password = password,
+            storedHash = user.passwordHash,
+            storedSalt = user.salt,
+            algorithm = user.kdfAlgorithm,
+            iterations = user.kdfIterations
+        )
+    }
+
+    /**
+     * Returns true if the stored user record uses an outdated/unsalted hash format.
+     */
+    fun needsPasswordMigration(user: User): Boolean {
+        return PasswordHasher.needsMigration(
+            storedSalt = user.salt,
+            algorithm = user.kdfAlgorithm,
+            iterations = user.kdfIterations
+        )
+    }
+
+    /**
+     * Hash data using SHA-256 (non-password utility)
      */
     fun hashData(data: String): String {
         return try {
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(data.toByteArray(StandardCharsets.UTF_8))
-            digest.joinToString("") { "%02x".format(it) }
-        } catch (e: Exception) {
+            PasswordHasher.sha256Hex(data)
+        } catch (_: Exception) {
             ""
         }
     }
 
     /**
-     * Verify if PIN is valid (hashed comparison)
+     * Verify if PIN is valid (constant-time comparison)
      */
     fun verifyPin(storedHash: String, inputPin: String): Boolean {
-        return storedHash == hashData(inputPin)
+        val candidate = hashData(inputPin).toByteArray(StandardCharsets.UTF_8)
+        val stored = storedHash.lowercase().toByteArray(StandardCharsets.UTF_8)
+        return candidate.isNotEmpty() && MessageDigest.isEqual(candidate, stored)
     }
 
     /**

@@ -20,7 +20,10 @@ import java.util.UUID
 @Serializable
 data class User(
     val username: String,
-    val passwordHash: String
+    val passwordHash: String,
+    val salt: String = "",
+    val kdfAlgorithm: String = "",
+    val kdfIterations: Int = 0
 )
 
 @Serializable

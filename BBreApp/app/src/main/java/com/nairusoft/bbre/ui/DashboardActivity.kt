@@ -22,7 +22,6 @@ import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
 import com.nairusoft.bbre.security.StorageOpResult
-import com.nairusoft.bbre.security.User
 import com.nairusoft.bbre.security.UserKey
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -466,18 +465,16 @@ class DashboardActivity : AppCompatActivity() {
                 val foundUser = users.find { it.username.equals(currentUser, ignoreCase = true) }
 
                 if (foundUser != null) {
-                    val newHash = if (newPassword.isNotEmpty()) {
+                    val updatedUser = if (newPassword.isNotEmpty()) {
                         if (newPassword.length < 8) {
                             binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
                             return@launch
                         }
-                        securityManager.hashData(newPassword)
+                        securityManager.createUserCredentials(newUsername, newPassword)
                     } else {
-                        foundUser.passwordHash
+                        foundUser.copy(username = newUsername)
                     }
                     binding.tilSettingsPassword.error = null
-
-                    val updatedUser = User(newUsername, newHash)
                     when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
                         is StorageOpResult.Success -> {
                             currentUser = newUsername
