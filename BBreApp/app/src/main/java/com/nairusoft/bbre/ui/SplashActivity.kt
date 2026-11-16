@@ -1,11 +1,9 @@
 package com.nairusoft.bbre.ui
 
+import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivitySplashBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,17 +58,13 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToLogin() {
-        Handler(Looper.getMainLooper()).postDelayed({
-            lifecycleScope.launch {
-                // Simulate security initialization
-                delay(splashTimeOut)
-                
-                // Navigate to Login Activity
-                startActivity(android.content.Intent(this@SplashActivity, LoginActivity::class.java))
-                finish()
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-            }
-        }, splashTimeOut)
+        lifecycleScope.launch {
+            delay(splashTimeOut)
+
+            startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
+            finish()
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
     }
 
     override fun onBackPressed() {
