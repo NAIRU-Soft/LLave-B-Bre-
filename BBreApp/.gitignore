@@ -39,6 +39,8 @@ captures/
 *.dex
 *.class
 *.hprof
+!proguard-rules.pro
+!app/proguard-rules.pro
 
 # OS
 .DS_Store
