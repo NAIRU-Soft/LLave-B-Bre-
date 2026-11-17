@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -24,7 +24,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintBottom_toTopOf="@id/bottomNavBar"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -60,6 +60,7 @@
                     android:layout_width="80dp"
                     android:layout_height="80dp"
                     android:src="@drawable/ic_lock"
+                    android:importantForAccessibility="no"
                     app:tint="@color/text_secondary" />
 
                 <TextView
@@ -72,11 +73,11 @@
                     android:layout_marginTop="16dp" />
 
                 <TextView
-                    android:layout_width="200dp"
+                    android:layout_width="220dp"
                     android:layout_height="wrap_content"
                     android:text="Crea una llave para asociar tus datos de forma segura."
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textAlignment="center"
                     android:layout_marginTop="8dp" />
 
@@ -88,9 +89,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="24dp"
-                android:src="@android:drawable/ic_input_add"
+                android:src="@drawable/ic_add"
                 app:backgroundTint="@color/bbre_accent"
-                app:tint="@color/bbre_primary_dark"
+                app:tint="@color/bbre_brand_navy_dark"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 android:contentDescription="Agregar Llave" />
@@ -126,7 +127,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Nombre de usuario"
-                    app:startIconDrawable="@drawable/ic_call"
+                    app:startIconDrawable="@drawable/ic_person"
                     app:startIconTint="@color/text_secondary"
                     android:layout_marginBottom="16dp">
 
@@ -150,6 +151,7 @@
                     app:startIconTint="@color/text_secondary"
                     app:endIconMode="password_toggle"
                     app:endIconTint="@color/text_secondary"
+                    app:errorIconDrawable="@null"
                     android:layout_marginBottom="24dp">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -169,13 +171,13 @@
                     android:layout_height="wrap_content"
                     android:minHeight="56dp"
                     android:text="Guardar Cambios"
-                    android:layout_marginBottom="32dp" />
+                    android:layout_marginBottom="24dp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:background="@color/outline_subtle"
-                    android:layout_marginBottom="32dp" />
+                    android:layout_marginBottom="24dp" />
 
                 <!-- Account Actions -->
                 <TextView
@@ -185,6 +187,18 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:textStyle="bold"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- System & Key Info Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSystemInfo"
+                    style="@style/Widget.BBreApp.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
+                    android:text="Información de Llave y Sistema"
+                    app:icon="@drawable/ic_info"
+                    app:iconGravity="textStart"
                     android:layout_marginBottom="16dp" />
 
                 <!-- Logout Button -->
@@ -213,79 +227,18 @@
 
     </FrameLayout>
 
-    <!-- Custom Bottom Navigation Bar -->
-    <LinearLayout
-        android:id="@+id/bottomNavBar"
+    <!-- Material 3 Bottom Navigation Bar -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
         android:layout_width="0dp"
-        android:layout_height="64dp"
-        android:orientation="horizontal"
+        android:layout_height="wrap_content"
         android:background="@color/bottom_nav_background"
-        android:elevation="8dp"
+        app:elevation="8dp"
+        app:itemIconTint="@color/bottom_nav_item_tint"
+        app:itemTextColor="@color/bottom_nav_item_tint"
+        app:menu="@menu/menu_bottom_nav"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Tab 1: Mis Llaves -->
-        <LinearLayout
-            android:id="@+id/tabKeys"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground">
-
-            <ImageView
-                android:id="@+id/ivTabKeys"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_lock"
-                app:tint="@color/bbre_primary" />
-
-            <TextView
-                android:id="@+id/tvTabKeys"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Mis Llaves"
-                android:textSize="12sp"
-                android:textColor="@color/bbre_primary"
-                android:textStyle="bold"
-                android:layout_marginTop="2dp" />
-
-        </LinearLayout>
-
-        <!-- Tab 2: Configuración -->
-        <LinearLayout
-            android:id="@+id/tabSettings"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground">
-
-            <ImageView
-                android:id="@+id/ivTabSettings"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_preferences"
-                app:tint="@color/nav_inactive" />
-
-            <TextView
-                android:id="@+id/tvTabSettings"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Configuración"
-                android:textSize="12sp"
-                android:textColor="@color/nav_inactive"
-                android:layout_marginTop="2dp" />
-
-        </LinearLayout>
-
-    </LinearLayout>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

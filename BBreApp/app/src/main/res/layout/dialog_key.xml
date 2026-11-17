@@ -32,14 +32,30 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <!-- Key Type Spinner/Selector -->
-        <Spinner
-            android:id="@+id/spinnerKeyType"
+        <!-- Key Type Exposed Dropdown (Material 3) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilKeyType"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:background="@drawable/spinner_background"
-            android:layout_marginBottom="12dp"
-            android:padding="8dp" />
+            android:layout_height="wrap_content"
+            android:hint="Banco o entidad"
+            app:boxStrokeColor="@color/bbre_primary"
+            app:hintTextColor="@color/bbre_primary"
+            app:boxBackgroundColor="@color/surface"
+            app:boxCornerRadiusTopStart="10dp"
+            app:boxCornerRadiusTopEnd="10dp"
+            app:boxCornerRadiusBottomStart="10dp"
+            app:boxCornerRadiusBottomEnd="10dp"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/actvKeyType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:textColor="@color/text_primary" />
+
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Custom Bank Input Field (Hidden by default, shown if + Agregar nuevo banco is selected) -->
         <com.google.android.material.textfield.TextInputLayout
@@ -127,7 +143,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancelar"
-                android:textColor="@color/bbre_primary"
                 android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton

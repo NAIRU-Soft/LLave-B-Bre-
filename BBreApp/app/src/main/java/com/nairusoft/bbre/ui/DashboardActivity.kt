@@ -12,7 +12,6 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -51,7 +50,13 @@ class DashboardActivity : AppCompatActivity() {
     private var currentUser: String = ""
     private var currentUserKeys: List<UserKey> = emptyList()
     private var isRedirectingToLogin = false
+    private var isKeysTabSelected = true
+    private var isUpdatingBottomNav = false
     private var activeDialog: AlertDialog? = null
+
+    companion object {
+        private const val STATE_ACTIVE_TAB_KEYS = "state_active_tab_keys"
+    }
 
     private val logoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val logoutRunnable = Runnable {
@@ -176,6 +181,14 @@ class DashboardActivity : AppCompatActivity() {
         setupBottomNavigation()
         setupKeysTab()
         setupSettingsTab()
+
+        val restoreKeysTab = savedInstanceState?.getBoolean(STATE_ACTIVE_TAB_KEYS, true) ?: true
+        switchTab(restoreKeysTab)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_ACTIVE_TAB_KEYS, isKeysTabSelected)
     }
 
     private fun setupToolbar() {
@@ -192,45 +205,46 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
-        binding.tabKeys.setOnClickListener {
-            switchTab(true)
-        }
-        binding.tabSettings.setOnClickListener {
-            switchTab(false)
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            if (isUpdatingBottomNav) return@setOnItemSelectedListener true
+            when (item.itemId) {
+                R.id.nav_keys -> {
+                    switchTab(true)
+                    true
+                }
+                R.id.nav_settings -> {
+                    switchTab(false)
+                    true
+                }
+                else -> false
+            }
         }
     }
 
     private fun switchTab(showKeys: Boolean) {
+        isKeysTabSelected = showKeys
+        val targetItemId = if (showKeys) R.id.nav_keys else R.id.nav_settings
+        if (binding.bottomNav.selectedItemId != targetItemId) {
+            isUpdatingBottomNav = true
+            binding.bottomNav.selectedItemId = targetItemId
+            isUpdatingBottomNav = false
+        }
+
         if (showKeys) {
             binding.layoutKeys.visibility = View.VISIBLE
             binding.layoutSettings.visibility = View.GONE
             supportActionBar?.title = "Mis Llaves"
-
-            binding.ivTabKeys.setColorFilter(getColor(R.color.bbre_primary))
-            binding.tvTabKeys.setTextColor(getColor(R.color.bbre_primary))
-            binding.tvTabKeys.setTypeface(null, android.graphics.Typeface.BOLD)
-
-            binding.ivTabSettings.setColorFilter(getColor(R.color.nav_inactive))
-            binding.tvTabSettings.setTextColor(getColor(R.color.nav_inactive))
-            binding.tvTabSettings.setTypeface(null, android.graphics.Typeface.NORMAL)
-            
             loadKeysList()
         } else {
             binding.layoutKeys.visibility = View.GONE
             binding.layoutSettings.visibility = View.VISIBLE
             supportActionBar?.title = "Configuración"
 
-            binding.ivTabKeys.setColorFilter(getColor(R.color.nav_inactive))
-            binding.tvTabKeys.setTextColor(getColor(R.color.nav_inactive))
-            binding.tvTabKeys.setTypeface(null, android.graphics.Typeface.NORMAL)
-
-            binding.ivTabSettings.setColorFilter(getColor(R.color.bbre_primary))
-            binding.tvTabSettings.setTextColor(getColor(R.color.bbre_primary))
-            binding.tvTabSettings.setTypeface(null, android.graphics.Typeface.BOLD)
-            
             // Reload user info into settings fields
             binding.etSettingsUsername.setText(currentUser)
             binding.etSettingsPassword.text?.clear()
+            binding.tilSettingsUsername.error = null
+            binding.tilSettingsPassword.error = null
         }
     }
 
@@ -350,36 +364,38 @@ class DashboardActivity : AppCompatActivity() {
         // Merge base banks with custom banks already saved by the user (sorted, no duplicates)
         val customBankOption = "+ Agregar nuevo banco..."
         val bankOptions = KeyUtils.buildBankOptions(currentUserKeys, customBankOption)
-        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, bankOptions)
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        dialogBinding.spinnerKeyType.adapter = spinnerAdapter
+        val bankAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, bankOptions)
+        dialogBinding.actvKeyType.setAdapter(bankAdapter)
 
-        // Clear validation errors automatically as the user types
+        var selectedBank = bankOptions.first()
+        dialogBinding.actvKeyType.setText(selectedBank, false)
+
+        // Clear validation errors automatically as the user types or changes bank
         dialogBinding.etCustomBank.doAfterTextChanged { dialogBinding.tilCustomBank.error = null }
         dialogBinding.etDescription.doAfterTextChanged { dialogBinding.tilDescription.error = null }
         dialogBinding.etKeyValue.doAfterTextChanged { dialogBinding.tilKeyValue.error = null }
 
-        // Control visibility of custom bank entry
-        dialogBinding.spinnerKeyType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                dialogBinding.tilCustomBank.error = null
-                if (bankOptions[position] == customBankOption) {
-                    dialogBinding.tilCustomBank.visibility = View.VISIBLE
-                } else {
-                    dialogBinding.tilCustomBank.visibility = View.GONE
-                }
+        dialogBinding.actvKeyType.setOnItemClickListener { _, _, position, _ ->
+            selectedBank = bankOptions[position]
+            dialogBinding.tilKeyType.error = null
+            dialogBinding.tilCustomBank.error = null
+            if (selectedBank == customBankOption) {
+                dialogBinding.tilCustomBank.visibility = View.VISIBLE
+            } else {
+                dialogBinding.tilCustomBank.visibility = View.GONE
             }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         // Pre-populate if editing
         if (existingKey != null) {
-            val bankIndex = bankOptions.indexOfFirst { it.equals(existingKey.type.trim(), ignoreCase = true) }
-            if (bankIndex != -1) {
-                dialogBinding.spinnerKeyType.setSelection(bankIndex)
+            val matchingBank = bankOptions.firstOrNull { it.equals(existingKey.type.trim(), ignoreCase = true) }
+            if (matchingBank != null) {
+                selectedBank = matchingBank
+                dialogBinding.actvKeyType.setText(matchingBank, false)
+                dialogBinding.tilCustomBank.visibility = View.GONE
             } else {
-                dialogBinding.spinnerKeyType.setSelection(bankOptions.indexOf(customBankOption))
+                selectedBank = customBankOption
+                dialogBinding.actvKeyType.setText(customBankOption, false)
                 dialogBinding.tilCustomBank.visibility = View.VISIBLE
                 dialogBinding.etCustomBank.setText(existingKey.type)
             }
@@ -396,13 +412,17 @@ class DashboardActivity : AppCompatActivity() {
             scheduleRemainingTimeout()
 
             // Clear previous errors before validating
+            dialogBinding.tilKeyType.error = null
             dialogBinding.tilCustomBank.error = null
             dialogBinding.tilDescription.error = null
             dialogBinding.tilKeyValue.error = null
 
             var hasError = false
-            var type = dialogBinding.spinnerKeyType.selectedItem.toString()
-            if (type == customBankOption) {
+            var type = KeyUtils.normalizeField(dialogBinding.actvKeyType.text.toString())
+            if (type.isEmpty()) {
+                dialogBinding.tilKeyType.error = "Selecciona un banco"
+                hasError = true
+            } else if (type == customBankOption) {
                 val customBank = KeyUtils.normalizeField(dialogBinding.etCustomBank.text.toString())
                 if (customBank.isEmpty()) {
                     dialogBinding.tilCustomBank.error = "Escribe el nombre del banco"
@@ -515,6 +535,9 @@ class DashboardActivity : AppCompatActivity() {
     // --- Settings Tab Logic ---
 
     private fun setupSettingsTab() {
+        binding.etSettingsUsername.doAfterTextChanged { binding.tilSettingsUsername.error = null }
+        binding.etSettingsPassword.doAfterTextChanged { binding.tilSettingsPassword.error = null }
+
         binding.btnSaveProfile.setOnClickListener {
             val newUsername = binding.etSettingsUsername.text.toString().trim()
             val newPassword = binding.etSettingsPassword.text?.toString() ?: ""
@@ -619,6 +642,10 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnSystemInfo.setOnClickListener {
+            showSystemInfoDialog()
+        }
+
         binding.btnLogout.setOnClickListener {
             performManualLogout()
         }
@@ -626,42 +653,31 @@ class DashboardActivity : AppCompatActivity() {
         binding.btnDeleteAccount.setOnClickListener {
             showDeleteAccountConfirmation()
         }
-
-        // Add System / Key Info Dialog button in Configuración
-        val btnSystemInfo = com.google.android.material.button.MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
-            text = "Información de Llave y Sistema"
-            id = View.generateViewId()
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 16
-                bottomMargin = 16
-            }
-            setIconResource(android.R.drawable.ic_menu_info_details)
-            setIconGravity(com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START)
-            // Style it to match primary/secondary button theme
-            setBackgroundColor(getColor(R.color.bbre_primary))
-            setTextColor(getColor(R.color.white))
-            setOnClickListener {
-                showSystemInfoDialog()
-            }
-        }
-
-        // Add this button dynamically to the layout settings container
-        val settingsLayoutContainer = binding.layoutSettings.getChildAt(0) as? android.widget.LinearLayout
-        settingsLayoutContainer?.addView(btnSystemInfo, 3) // Add right above Logout button
     }
 
     private fun showSystemInfoDialog() {
         activeDialog?.dismiss()
+        val latestKey = currentUserKeys.maxByOrNull { it.modificationDate.ifEmpty { it.creationDate } }
+        val keysSummary = if (latestKey != null) {
+            "\n\nÚltima llave registrada:\n" +
+                "• Nombre/Banco: ${latestKey.type}\n" +
+                "• Creado por: ${latestKey.createdBy.ifEmpty { currentUser }}\n" +
+                "• Fecha de creación: ${latestKey.creationDate.ifEmpty { "Desconocida" }}\n" +
+                "• Fecha de modificación: ${latestKey.modificationDate.ifEmpty { "Sin modificaciones" }}\n" +
+                "• Versión de llave: ${latestKey.version}"
+        } else {
+            "\n\n• Llaves registradas: 0"
+        }
+
         activeDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Información del Sistema BBre")
+            .setTitle("Información de Llave y Sistema")
             .setMessage(
-                "• Nombre de la App: BBre - NairuSoft\n" +
-                "• Creado por: NairuSoft\n" +
-                "• Propósito: Administración local de llaves y credenciales seguras\n" +
-                "• Versión más reciente: 0.0.1"
+                "• Aplicación: BBre - NairuSoft\n" +
+                "• Desarrollado por: NairuSoft\n" +
+                "• Usuario activo: $currentUser\n" +
+                "• Total de llaves: ${currentUserKeys.size}\n" +
+                "• Versión más reciente: 0.0.1" +
+                keysSummary
             )
             .setPositiveButton("Aceptar", null)
             .show()
