@@ -1,12 +1,15 @@
 package com.nairusoft.bbre.security
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
+import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.nairusoft.bbre.BuildConfig
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
 import java.security.MessageDigest
@@ -15,15 +18,17 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import kotlin.concurrent.thread
 
 /**
  * SecurityManager - Central security component for BBre
- * Handles encryption, decryption, biometric authentication, and secure storage
+ * Handles encryption, decryption, biometric authentication, and secure storage.
+ *
+ * TODO(D-08): Migrate EncryptedSharedPreferences (security-crypto 1.1.0-alpha06) to Google Tink + Proto DataStore.
  */
-class SecurityManager(private val context: Context) {
+class SecurityManager(context: Context) {
 
     companion object {
+        private const val TAG = "SecurityManager"
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val TRANSFORMATION_AES = "AES/GCM/NoPadding"
         private const val GCM_IV_LENGTH = 12
@@ -48,25 +53,58 @@ class SecurityManager(private val context: Context) {
     }
 
     private val keyStore: KeyStore
-    private val encryptedPrefs: EncryptedSharedPreferences
-    private val masterKey: MasterKey
+    private val biometricManager: BiometricManager
+    private val encryptedPrefs: SharedPreferences
 
     init {
+        val appContext = context.applicationContext
         keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
             load(null)
         }
-        
-        masterKey = MasterKey.Builder(context)
+        biometricManager = BiometricManager.from(appContext)
+        encryptedPrefs = createEncryptedPrefsWithRecovery(appContext)
+    }
+
+    private fun createEncryptedPrefsWithRecovery(appContext: Context): SharedPreferences {
+        return try {
+            buildEncryptedPrefs(appContext)
+        } catch (e: Exception) {
+            // Recover cleanly if MasterKey or encrypted preferences are corrupted across OS/backup restore.
+            logDebugWarning("Recovering corrupted EncryptedSharedPreferences store", e)
+            try {
+                appContext.deleteSharedPreferences(PREF_NAME)
+                if (keyStore.containsAlias(MasterKey.DEFAULT_MASTER_KEY_ALIAS)) {
+                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                }
+            } catch (cleanupError: Exception) {
+                logDebugWarning("Failed cleaning up corrupted secure prefs before retry", cleanupError)
+            }
+            buildEncryptedPrefs(appContext)
+        }
+    }
+
+    private fun buildEncryptedPrefs(appContext: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        
-        encryptedPrefs = EncryptedSharedPreferences.create(
-            context,
+
+        return EncryptedSharedPreferences.create(
+            appContext,
             PREF_NAME,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        ) as EncryptedSharedPreferences
+        )
+    }
+
+    private fun logDebugWarning(message: String, throwable: Throwable? = null) {
+        if (BuildConfig.DEBUG) {
+            if (throwable != null) {
+                Log.w(TAG, "$message (${throwable.javaClass.simpleName})", throwable)
+            } else {
+                Log.w(TAG, message)
+            }
+        }
     }
 
     sealed class BiometricCipherResult {
@@ -79,7 +117,6 @@ class SecurityManager(private val context: Context) {
      * Check if device supports strong (Class 3) biometric authentication compatible with CryptoObject.
      */
     fun isBiometricAvailable(): Boolean {
-        val biometricManager = BiometricManager.from(context)
         return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
             BiometricManager.BIOMETRIC_SUCCESS
     }
@@ -89,7 +126,6 @@ class SecurityManager(private val context: Context) {
      */
     fun isWeakBiometricOnly(): Boolean {
         if (isBiometricAvailable()) return false
-        val biometricManager = BiometricManager.from(context)
         return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
             BiometricManager.BIOMETRIC_SUCCESS
     }
@@ -126,7 +162,7 @@ class SecurityManager(private val context: Context) {
             keyGenerator.init(keyGenParameterSpec)
             keyGenerator.generateKey()
         } catch (e: Exception) {
-            e.printStackTrace()
+            logDebugWarning("Failed generating biometric key", e)
             null
         }
     }
@@ -204,7 +240,7 @@ class SecurityManager(private val context: Context) {
             storeSecureData(KEY_BIOMETRIC_OWNER, username)
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            logDebugWarning("Failed saving biometric enrollment", e)
             false
         }
     }
@@ -236,7 +272,7 @@ class SecurityManager(private val context: Context) {
                 null
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            logDebugWarning("Failed verifying biometric decryption", e)
             null
         }
     }
@@ -281,7 +317,7 @@ class SecurityManager(private val context: Context) {
             keyGenerator.init(keyGenParameterSpec)
             keyGenerator.generateKey()
         } catch (e: Exception) {
-            e.printStackTrace()
+            logDebugWarning("Failed generating standard key", e)
             null
         }
     }
@@ -293,7 +329,7 @@ class SecurityManager(private val context: Context) {
         return try {
             keyStore.getKey(alias, null) as? SecretKey
         } catch (e: Exception) {
-            e.printStackTrace()
+            logDebugWarning("Failed reading secret key", e)
             null
         }
     }
@@ -469,86 +505,4 @@ class SecurityManager(private val context: Context) {
             ""
         }
     }
-
-    /**
-     * Verify if PIN is valid (constant-time comparison)
-     */
-    fun verifyPin(storedHash: String, inputPin: String): Boolean {
-        val candidate = hashData(inputPin).toByteArray(StandardCharsets.UTF_8)
-        val stored = storedHash.lowercase().toByteArray(StandardCharsets.UTF_8)
-        return candidate.isNotEmpty() && MessageDigest.isEqual(candidate, stored)
-    }
-
-    /**
-     * Check if app is running in debug mode (security risk)
-     */
-    fun isDebugMode(): Boolean {
-        return context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-    }
-
-    /**
-     * Perform security check before sensitive operations
-     */
-    fun performSecurityCheck(): SecurityStatus {
-        val issues = mutableListOf<String>()
-        
-        if (isDebugMode()) {
-            issues.add("App running in debug mode")
-        }
-        
-        if (!isBiometricAvailable()) {
-            issues.add("Biometric authentication not available")
-        }
-        
-        return if (issues.isEmpty()) {
-            SecurityStatus.SECURE
-        } else {
-            SecurityStatus.WARNING(issues)
-        }
-    }
-
-    /**
-     * Validate transfer amount against BBre limits
-     */
-    fun validateTransferAmount(amount: Long): TransferValidationResult {
-        val maxAmount = 12_110_000L // BBre limit in COP
-        
-        return when {
-            amount <= 0 -> TransferValidationResult.INVALID_AMOUNT
-            amount > maxAmount -> TransferValidationResult.EXCEEDS_LIMIT(maxAmount)
-            else -> TransferValidationResult.VALID
-        }
-    }
-
-    /**
-     * Securely wipe sensitive data from memory
-     */
-    fun secureWipe(sensitiveData: CharArray) {
-        thread {
-            try {
-                for (i in sensitiveData.indices) {
-                    sensitiveData[i] = '\u0000'
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-}
-
-/**
- * Security status enum
- */
-sealed class SecurityStatus {
-    object SECURE : SecurityStatus()
-    data class WARNING(val issues: List<String>) : SecurityStatus()
-}
-
-/**
- * Transfer validation result
- */
-sealed class TransferValidationResult {
-    object VALID : TransferValidationResult()
-    object INVALID_AMOUNT : TransferValidationResult()
-    data class EXCEEDS_LIMIT(val maxAmount: Long) : TransferValidationResult()
 }
