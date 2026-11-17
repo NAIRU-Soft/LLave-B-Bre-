@@ -8,16 +8,21 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
@@ -487,13 +492,29 @@ class DashboardActivity : AppCompatActivity() {
     private fun setupSettingsTab() {
         binding.btnSaveProfile.setOnClickListener {
             val newUsername = binding.etSettingsUsername.text.toString().trim()
-            val newPassword = binding.etSettingsPassword.text.toString().trim()
+            val newPassword = binding.etSettingsPassword.text?.toString() ?: ""
 
             if (newUsername.isEmpty()) {
                 binding.tilSettingsUsername.error = "El usuario no puede estar vacío"
                 return@setOnClickListener
             }
+            if (newUsername.any { it.isWhitespace() }) {
+                binding.tilSettingsUsername.error = "El usuario no debe contener espacios"
+                return@setOnClickListener
+            }
             binding.tilSettingsUsername.error = null
+
+            if (newPassword.isNotEmpty()) {
+                if (newPassword.any { it.isWhitespace() }) {
+                    binding.tilSettingsPassword.error = "La contraseña no debe contener espacios"
+                    return@setOnClickListener
+                }
+                if (newPassword.length < 8) {
+                    binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
+                    return@setOnClickListener
+                }
+            }
+            binding.tilSettingsPassword.error = null
 
             lifecycleScope.launch {
                 val users = when (val load = storageManager.getUsersResult()) {
@@ -504,39 +525,71 @@ class DashboardActivity : AppCompatActivity() {
                     }
                 }
                 val foundUser = users.find { it.username.equals(currentUser, ignoreCase = true) }
+                if (foundUser == null) {
+                    Toast.makeText(
+                        this@DashboardActivity,
+                        "No se encontró el usuario actual. Inicia sesión nuevamente.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
 
-                if (foundUser != null) {
-                    val updatedUser = if (newPassword.isNotEmpty()) {
-                        if (newPassword.length < 8) {
-                            binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
-                            return@launch
+                if (newUsername == foundUser.username && newPassword.isEmpty()) {
+                    Toast.makeText(this@DashboardActivity, "No hay cambios para guardar", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val applyProfileUpdate: () -> Unit = {
+                    lifecycleScope.launch {
+                        val updatedUser = if (newPassword.isNotEmpty()) {
+                            securityManager.createUserCredentials(newUsername, newPassword)
+                        } else {
+                            // Keep historical createdBy intact on existing keys (D-04)
+                            foundUser.copy(username = newUsername)
                         }
-                        securityManager.createUserCredentials(newUsername, newPassword)
-                    } else {
-                        foundUser.copy(username = newUsername)
-                    }
-                    binding.tilSettingsPassword.error = null
-                    when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
-                        is StorageOpResult.Success -> {
-                            val usernameChanged = !currentUser.equals(newUsername, ignoreCase = true)
-                            currentUser = newUsername
-                            sessionManager.updateActiveUsername(newUsername)
-                            securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, newUsername)
-                            securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, newUsername)
-                            if (usernameChanged) {
-                                securityManager.clearBiometricEnrollment()
+                        when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
+                            is StorageOpResult.Success -> {
+                                val usernameChanged = !currentUser.equals(newUsername, ignoreCase = true)
+                                currentUser = newUsername
+                                sessionManager.updateActiveUsername(newUsername)
+                                securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, newUsername)
+                                securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, newUsername)
+                                if (usernameChanged) {
+                                    securityManager.clearBiometricEnrollment()
+                                }
+                                binding.etSettingsPassword.text?.clear()
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    "Perfil actualizado exitosamente",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                switchTab(true)
                             }
-                            Toast.makeText(this@DashboardActivity, "Perfil actualizado exitosamente", Toast.LENGTH_SHORT).show()
-                            switchTab(true)
+                            is StorageOpResult.Duplicate -> {
+                                binding.tilSettingsUsername.error = "El nombre de usuario ya está en uso"
+                            }
+                            is StorageOpResult.NotFound -> {
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    "No se encontró el usuario para actualizar.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            is StorageOpResult.Error -> {
+                                Toast.makeText(this@DashboardActivity, updateResult.message, Toast.LENGTH_LONG).show()
+                            }
                         }
-                        is StorageOpResult.Duplicate -> {
-                            binding.tilSettingsUsername.error = "El nombre de usuario ya está en uso"
-                        }
-                        is StorageOpResult.Error -> {
-                            Toast.makeText(this@DashboardActivity, updateResult.message, Toast.LENGTH_LONG).show()
-                        }
-                        is StorageOpResult.NotFound -> Unit
                     }
+                }
+
+                if (newPassword.isNotEmpty()) {
+                    requestReauthentication(
+                        title = "Confirmar identidad",
+                        message = "Ingresa tu contraseña actual para cambiar tu contraseña.",
+                        onAuthenticated = applyProfileUpdate
+                    )
+                } else {
+                    applyProfileUpdate()
                 }
             }
         }
@@ -589,24 +642,118 @@ class DashboardActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun requestReauthentication(
+        title: String,
+        message: String,
+        onAuthenticated: () -> Unit
+    ) {
+        activeDialog?.dismiss()
+
+        val density = resources.displayMetrics.density
+        val paddingPx = (20 * density).toInt()
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(paddingPx, (8 * density).toInt(), paddingPx, 0)
+        }
+
+        val tvMessage = TextView(this).apply {
+            text = message
+            setPadding(0, 0, 0, (12 * density).toInt())
+        }
+        container.addView(tvMessage)
+
+        val tilCurrentPassword = TextInputLayout(
+            this,
+            null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            hint = "Contraseña actual"
+            endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+        }
+        val etCurrentPassword = TextInputEditText(tilCurrentPassword.context).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        tilCurrentPassword.addView(etCurrentPassword)
+        container.addView(tilCurrentPassword)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(container)
+            .setPositiveButton("Confirmar", null)
+            .setNegativeButton("Cancelar", null)
+            .create()
+
+        activeDialog = dialog
+        dialog.setOnShowListener {
+            val positiveBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveBtn.setOnClickListener {
+                val enteredPassword = etCurrentPassword.text?.toString() ?: ""
+                if (enteredPassword.isEmpty()) {
+                    tilCurrentPassword.error = "Ingresa tu contraseña actual"
+                    return@setOnClickListener
+                }
+                tilCurrentPassword.error = null
+                positiveBtn.isEnabled = false
+
+                lifecycleScope.launch {
+                    val loadResult = storageManager.getUsersResult()
+                    positiveBtn.isEnabled = true
+                    when (loadResult) {
+                        is StorageLoadResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, loadResult.message, Toast.LENGTH_LONG).show()
+                        }
+                        is StorageLoadResult.Success -> {
+                            val user = loadResult.data.find {
+                                it.username.equals(currentUser, ignoreCase = true)
+                            }
+                            if (user != null && securityManager.verifyUserPassword(user, enteredPassword)) {
+                                dialog.dismiss()
+                                onAuthenticated()
+                            } else {
+                                tilCurrentPassword.error = "Contraseña actual incorrecta"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        dialog.show()
+    }
+
     private fun showDeleteAccountConfirmation() {
         activeDialog?.dismiss()
         activeDialog = AlertDialog.Builder(this)
             .setTitle("Eliminar Cuenta")
-            .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta? Se eliminarán todas tus llaves y tu perfil. Esta acción no se puede deshacer.")
-            .setPositiveButton("Eliminar permanentemente") { _, _ ->
-                lifecycleScope.launch {
-                    when (val result = storageManager.deleteUser(currentUser)) {
-                        is StorageOpResult.Success -> {
-                            securityManager.clearBiometricEnrollment()
-                            securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
-                            Toast.makeText(this@DashboardActivity, "Cuenta eliminada exitosamente", Toast.LENGTH_LONG).show()
-                            performManualLogout()
+            .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta '$currentUser'? Se eliminarán tu perfil y todas tus llaves registradas. Esta acción no se puede deshacer.")
+            .setPositiveButton("Continuar") { _, _ ->
+                requestReauthentication(
+                    title = "Confirmar eliminación",
+                    message = "Por seguridad, ingresa tu contraseña actual para eliminar permanentemente tu cuenta y tus llaves."
+                ) {
+                    lifecycleScope.launch {
+                        when (val result = storageManager.deleteUser(currentUser)) {
+                            is StorageOpResult.Success -> {
+                                securityManager.clearBiometricEnrollment()
+                                securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    "Cuenta eliminada exitosamente",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                performManualLogout()
+                            }
+                            is StorageOpResult.Error -> {
+                                Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                            }
+                            is StorageOpResult.NotFound -> {
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    "No se encontró la cuenta actual.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            is StorageOpResult.Duplicate -> Unit
                         }
-                        is StorageOpResult.Error -> {
-                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
-                        }
-                        is StorageOpResult.NotFound, is StorageOpResult.Duplicate -> Unit
                     }
                 }
             }
