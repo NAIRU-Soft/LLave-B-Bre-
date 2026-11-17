@@ -6,6 +6,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -59,6 +60,7 @@ class LoginActivity : AppCompatActivity() {
         securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
 
         setupInputListeners()
+        setupBackNavigation()
         updateModeUI()
         setupToggleMode()
         setupBiometricButton()
@@ -78,6 +80,20 @@ class LoginActivity : AppCompatActivity() {
             )
             windowInsets
         }
+    }
+
+    private fun setupBackNavigation() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (!isLoginMode) {
+                    isLoginMode = true
+                    binding.etPassword.text?.clear()
+                    updateModeUI()
+                } else {
+                    finish()
+                }
+            }
+        })
     }
 
     private fun setupInputListeners() {
@@ -284,7 +300,7 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToDashboard() {
         startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
         finish()
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        applyFadeCloseTransition()
     }
 
     private fun promptBiometricEnrollment(username: String) {
@@ -444,14 +460,5 @@ class LoginActivity : AppCompatActivity() {
             .build()
 
         biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
-    }
-
-    override fun onBackPressed() {
-        if (!isLoginMode) {
-            isLoginMode = true
-            updateModeUI()
-        } else {
-            super.onBackPressed()
-        }
     }
 }

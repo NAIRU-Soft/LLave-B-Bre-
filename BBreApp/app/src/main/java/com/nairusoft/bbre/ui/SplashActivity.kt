@@ -2,6 +2,7 @@ package com.nairusoft.bbre.ui
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nairusoft.bbre.databinding.ActivitySplashBinding
@@ -24,6 +25,13 @@ class SplashActivity : AppCompatActivity() {
 
         // Hide action bar
         supportActionBar?.hide()
+
+        // Prevent back navigation while splash is visible
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Intentionally ignore back press on splash screen
+            }
+        })
 
         // Initialize UI
         setupUI()
@@ -63,13 +71,7 @@ class SplashActivity : AppCompatActivity() {
 
             startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
             finish()
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            applyFadeCloseTransition()
         }
-    }
-
-    override fun onBackPressed() {
-        // Prevent back navigation from splash screen
-        // Do nothing or show exit confirmation
-        super.onBackPressed()
     }
 }
