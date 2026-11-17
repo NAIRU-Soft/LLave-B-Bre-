@@ -2,18 +2,22 @@ package com.nairusoft.bbre.ui
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ItemKeyBinding
 import com.nairusoft.bbre.security.UserKey
 
+/**
+ * RecyclerView adapter backed by [ListAdapter] and [DiffUtil] for rendering [UserKey] rows.
+ */
 class KeysAdapter(
-    private var keysList: List<UserKey>,
     private val onRowClick: (UserKey) -> Unit,
     private val onInfoClick: (UserKey) -> Unit,
     private val onEditClick: (UserKey) -> Unit,
     private val onDeleteClick: (UserKey) -> Unit
-) : RecyclerView.Adapter<KeysAdapter.KeyViewHolder>() {
+) : ListAdapter<UserKey, KeysAdapter.KeyViewHolder>(KeyDiffCallback) {
 
     inner class KeyViewHolder(val binding: ItemKeyBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -23,7 +27,7 @@ class KeysAdapter(
     }
 
     override fun onBindViewHolder(holder: KeyViewHolder, position: Int) {
-        val key = keysList[position]
+        val key = getItem(position)
         val context = holder.itemView.context
         holder.binding.tvKeyType.text = key.type
         holder.binding.tvKeyDescription.text = context.getString(R.string.item_description_format, key.description)
@@ -37,10 +41,18 @@ class KeysAdapter(
         holder.binding.btnDelete.setOnClickListener { onDeleteClick(key) }
     }
 
-    override fun getItemCount(): Int = keysList.size
-
+    /**
+     * Submits a defensive copy of [newKeys] so [DiffUtil] diffs incremental changes accurately.
+     */
     fun updateData(newKeys: List<UserKey>) {
-        keysList = newKeys
-        notifyDataSetChanged()
+        submitList(newKeys.toList())
+    }
+
+    private object KeyDiffCallback : DiffUtil.ItemCallback<UserKey>() {
+        override fun areItemsTheSame(oldItem: UserKey, newItem: UserKey): Boolean =
+            oldItem.id == newItem.id
+
+        override fun areContentsTheSame(oldItem: UserKey, newItem: UserKey): Boolean =
+            oldItem == newItem
     }
 }

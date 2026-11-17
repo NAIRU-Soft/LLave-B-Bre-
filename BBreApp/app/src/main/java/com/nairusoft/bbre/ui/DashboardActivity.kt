@@ -260,7 +260,6 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun setupKeysTab() {
         keysAdapter = KeysAdapter(
-            emptyList(),
             onRowClick = { userKey -> copyToClipboard(userKey.value) },
             onInfoClick = { userKey -> showKeyInfoDialog(userKey) },
             onEditClick = { userKey -> showKeyDialog(userKey) },
