@@ -27,6 +27,7 @@ import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
+import com.nairusoft.bbre.security.AuthValidator
 import com.nairusoft.bbre.security.KeyUtils
 import com.nairusoft.bbre.security.SecurityManager
 import com.nairusoft.bbre.security.SessionManager
@@ -560,24 +561,29 @@ class DashboardActivity : AppCompatActivity() {
             val newUsername = binding.etSettingsUsername.text.toString().trim()
             val newPassword = binding.etSettingsPassword.text?.toString() ?: ""
 
-            if (newUsername.isEmpty()) {
-                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_empty)
-                return@setOnClickListener
-            }
-            if (newUsername.any { it.isWhitespace() }) {
-                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_spaces)
-                return@setOnClickListener
-            }
-            binding.tilSettingsUsername.error = null
-
-            if (newPassword.isNotEmpty()) {
-                if (newPassword.any { it.isWhitespace() }) {
-                    binding.tilSettingsPassword.error = getString(R.string.error_password_spaces)
+            when (AuthValidator.validateUsername(newUsername)) {
+                AuthValidator.UsernameError.EMPTY -> {
+                    binding.tilSettingsUsername.error = getString(R.string.error_settings_username_empty)
                     return@setOnClickListener
                 }
-                if (newPassword.length < 8) {
-                    binding.tilSettingsPassword.error = getString(R.string.error_new_password_min_length)
+                AuthValidator.UsernameError.CONTAINS_WHITESPACE -> {
+                    binding.tilSettingsUsername.error = getString(R.string.error_settings_username_spaces)
                     return@setOnClickListener
+                }
+                null -> binding.tilSettingsUsername.error = null
+            }
+
+            if (newPassword.isNotEmpty()) {
+                when (AuthValidator.validatePassword(newPassword)) {
+                    AuthValidator.PasswordError.CONTAINS_WHITESPACE -> {
+                        binding.tilSettingsPassword.error = getString(R.string.error_password_spaces)
+                        return@setOnClickListener
+                    }
+                    AuthValidator.PasswordError.TOO_SHORT -> {
+                        binding.tilSettingsPassword.error = getString(R.string.error_new_password_min_length)
+                        return@setOnClickListener
+                    }
+                    AuthValidator.PasswordError.EMPTY, null -> Unit
                 }
             }
             binding.tilSettingsPassword.error = null

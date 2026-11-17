@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
+import com.nairusoft.bbre.security.AuthValidator
 import com.nairusoft.bbre.security.SecurityManager
 import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
@@ -192,27 +193,32 @@ class LoginActivity : AppCompatActivity() {
     private fun validateInput(username: String, password: String): Boolean {
         var isValid = true
 
-        if (username.isEmpty()) {
-            binding.tilUsername.error = getString(R.string.error_username_empty)
-            isValid = false
-        } else if (username.any { it.isWhitespace() }) {
-            binding.tilUsername.error = getString(R.string.error_username_spaces)
-            isValid = false
-        } else {
-            binding.tilUsername.error = null
+        when (AuthValidator.validateUsername(username)) {
+            AuthValidator.UsernameError.EMPTY -> {
+                binding.tilUsername.error = getString(R.string.error_username_empty)
+                isValid = false
+            }
+            AuthValidator.UsernameError.CONTAINS_WHITESPACE -> {
+                binding.tilUsername.error = getString(R.string.error_username_spaces)
+                isValid = false
+            }
+            null -> binding.tilUsername.error = null
         }
 
-        if (password.isEmpty()) {
-            binding.tilPassword.error = getString(R.string.error_password_empty)
-            isValid = false
-        } else if (password.any { it.isWhitespace() }) {
-            binding.tilPassword.error = getString(R.string.error_password_spaces)
-            isValid = false
-        } else if (password.length < 8) {
-            binding.tilPassword.error = getString(R.string.error_password_min_length)
-            isValid = false
-        } else {
-            binding.tilPassword.error = null
+        when (AuthValidator.validatePassword(password)) {
+            AuthValidator.PasswordError.EMPTY -> {
+                binding.tilPassword.error = getString(R.string.error_password_empty)
+                isValid = false
+            }
+            AuthValidator.PasswordError.CONTAINS_WHITESPACE -> {
+                binding.tilPassword.error = getString(R.string.error_password_spaces)
+                isValid = false
+            }
+            AuthValidator.PasswordError.TOO_SHORT -> {
+                binding.tilPassword.error = getString(R.string.error_password_min_length)
+                isValid = false
+            }
+            null -> binding.tilPassword.error = null
         }
 
         return isValid

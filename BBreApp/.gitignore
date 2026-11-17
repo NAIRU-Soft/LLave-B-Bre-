@@ -47,9 +47,9 @@ captures/
 Thumbs.db
 
 # agentes inteligentes
-.agents/
+/.agents/
 # test de pruebas 
-Test/
+/Test/
 
 # Environment files & secrets (SEC-01)
 .env

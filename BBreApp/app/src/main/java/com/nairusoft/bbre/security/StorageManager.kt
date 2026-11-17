@@ -52,7 +52,7 @@ sealed class StorageOpResult {
 }
 
 class StorageManager(
-    private val context: Context,
+    private val filesDir: File,
     private val cryptoProvider: CryptoProvider
 ) {
 
@@ -79,7 +79,7 @@ class StorageManager(
     }
 
     constructor(context: Context) : this(
-        context.applicationContext,
+        context.applicationContext.filesDir,
         SecurityManagerCryptoProvider(SecurityManager.getInstance(context.applicationContext))
     )
 
@@ -110,7 +110,7 @@ class StorageManager(
     // --- Internal I/O Helpers (always called under ioMutex & Dispatchers.IO) ---
 
     private inline fun <reified T> readEncryptedList(fileName: String): StorageLoadResult<List<T>> {
-        val file = File(context.filesDir, fileName)
+        val file = File(filesDir, fileName)
         if (!file.exists()) {
             return StorageLoadResult.Success(emptyList())
         }
@@ -144,7 +144,7 @@ class StorageManager(
             if (!cryptoProvider.ensureKey(KEY_ALIAS)) {
                 return Result.failure(IllegalStateException("Clave de almacenamiento no disponible"))
             }
-            val targetFile = File(context.filesDir, fileName)
+            val targetFile = File(filesDir, fileName)
             val jsonText = json.encodeToString(items)
             val encryptedText = cryptoProvider.encrypt(jsonText, KEY_ALIAS).getOrElse { error ->
                 return Result.failure(error)
