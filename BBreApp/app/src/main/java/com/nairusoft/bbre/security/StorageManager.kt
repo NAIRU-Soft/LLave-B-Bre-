@@ -310,17 +310,22 @@ class StorageManager(
                 is StorageLoadResult.Success -> load.data.toMutableList()
                 is StorageLoadResult.Error -> return@withLock StorageOpResult.Error(load.cause, load.message)
             }
+            val normalizedKey = key.copy(
+                type = KeyUtils.normalizeField(key.type),
+                value = KeyUtils.normalizeKeyValue(key.value),
+                description = KeyUtils.normalizeField(key.description)
+            )
             if (keys.any {
-                    it.id == key.id || (
-                        it.type == key.type &&
-                            it.value == key.value &&
-                            it.username.equals(key.username, ignoreCase = true)
+                    it.id == normalizedKey.id || (
+                        KeyUtils.normalizeField(it.type).equals(normalizedKey.type, ignoreCase = true) &&
+                            KeyUtils.normalizeKeyValue(it.value).equals(normalizedKey.value, ignoreCase = true) &&
+                            it.username.equals(normalizedKey.username, ignoreCase = true)
                         )
                 }
             ) {
                 return@withLock StorageOpResult.Duplicate
             }
-            keys.add(key)
+            keys.add(normalizedKey)
             writeEncryptedList(KEYS_FILE, keys).fold(
                 onSuccess = { StorageOpResult.Success },
                 onFailure = { StorageOpResult.Error(it, "No se pudo guardar la llave") }
@@ -337,17 +342,22 @@ class StorageManager(
             val index = keys.indexOfFirst { it.id == updatedKey.id }
             if (index == -1) return@withLock StorageOpResult.NotFound
 
+            val normalizedKey = updatedKey.copy(
+                type = KeyUtils.normalizeField(updatedKey.type),
+                value = KeyUtils.normalizeKeyValue(updatedKey.value),
+                description = KeyUtils.normalizeField(updatedKey.description)
+            )
             if (keys.any {
-                    it.id != updatedKey.id &&
-                        it.type == updatedKey.type &&
-                        it.value == updatedKey.value &&
-                        it.username.equals(updatedKey.username, ignoreCase = true)
+                    it.id != normalizedKey.id &&
+                        KeyUtils.normalizeField(it.type).equals(normalizedKey.type, ignoreCase = true) &&
+                        KeyUtils.normalizeKeyValue(it.value).equals(normalizedKey.value, ignoreCase = true) &&
+                        it.username.equals(normalizedKey.username, ignoreCase = true)
                 }
             ) {
                 return@withLock StorageOpResult.Duplicate
             }
 
-            keys[index] = updatedKey
+            keys[index] = normalizedKey
             writeEncryptedList(KEYS_FILE, keys).fold(
                 onSuccess = { StorageOpResult.Success },
                 onFailure = { StorageOpResult.Error(it, "No se pudo actualizar la llave") }

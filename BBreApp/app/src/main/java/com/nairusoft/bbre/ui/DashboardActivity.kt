@@ -19,6 +19,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.textfield.TextInputEditText
@@ -26,6 +27,7 @@ import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
+import com.nairusoft.bbre.security.KeyUtils
 import com.nairusoft.bbre.security.SecurityManager
 import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageLoadResult
@@ -46,6 +48,7 @@ class DashboardActivity : AppCompatActivity() {
     private val sessionManager: SessionManager = SessionManager.getInstance()
     private lateinit var keysAdapter: KeysAdapter
     private var currentUser: String = ""
+    private var currentUserKeys: List<UserKey> = emptyList()
     private var isRedirectingToLogin = false
     private var activeDialog: AlertDialog? = null
 
@@ -128,6 +131,7 @@ class DashboardActivity : AppCompatActivity() {
         sessionManager.clearSession()
         securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
         currentUser = ""
+        currentUserKeys = emptyList()
         if (::keysAdapter.isInitialized) {
             keysAdapter.updateData(emptyList())
         }
@@ -262,6 +266,7 @@ class DashboardActivity : AppCompatActivity() {
             when (val result = storageManager.getKeysForUserResult(currentUser)) {
                 is StorageLoadResult.Success -> {
                     val keys = result.data
+                    currentUserKeys = keys
                     if (keys.isEmpty()) {
                         binding.llEmptyState.visibility = View.VISIBLE
                         binding.rvKeys.visibility = View.GONE
@@ -341,16 +346,23 @@ class DashboardActivity : AppCompatActivity() {
 
         dialogBinding.tvDialogTitle.text = if (existingKey == null) "Agregar Nueva Llave" else "Modificar Llave"
 
-        // Setup Spinners/Adapters for banks
-        val defaultBanks = mutableListOf("Banco de la República", "Bancolombia", "Davivienda", "Nequi", "Daviplata", "+ Agregar nuevo banco...")
-        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, defaultBanks)
+        // Merge base banks with custom banks already saved by the user (sorted, no duplicates)
+        val customBankOption = "+ Agregar nuevo banco..."
+        val bankOptions = KeyUtils.buildBankOptions(currentUserKeys, customBankOption)
+        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, bankOptions)
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         dialogBinding.spinnerKeyType.adapter = spinnerAdapter
+
+        // Clear validation errors automatically as the user types
+        dialogBinding.etCustomBank.doAfterTextChanged { dialogBinding.tilCustomBank.error = null }
+        dialogBinding.etDescription.doAfterTextChanged { dialogBinding.tilDescription.error = null }
+        dialogBinding.etKeyValue.doAfterTextChanged { dialogBinding.tilKeyValue.error = null }
 
         // Control visibility of custom bank entry
         dialogBinding.spinnerKeyType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (defaultBanks[position] == "+ Agregar nuevo banco...") {
+                dialogBinding.tilCustomBank.error = null
+                if (bankOptions[position] == customBankOption) {
                     dialogBinding.tilCustomBank.visibility = View.VISIBLE
                 } else {
                     dialogBinding.tilCustomBank.visibility = View.GONE
@@ -362,12 +374,11 @@ class DashboardActivity : AppCompatActivity() {
 
         // Pre-populate if editing
         if (existingKey != null) {
-            val bankIndex = defaultBanks.indexOf(existingKey.type)
+            val bankIndex = bankOptions.indexOfFirst { it.equals(existingKey.type.trim(), ignoreCase = true) }
             if (bankIndex != -1) {
                 dialogBinding.spinnerKeyType.setSelection(bankIndex)
             } else {
-                // If it's a custom bank, set spinner to custom and fill custom text
-                dialogBinding.spinnerKeyType.setSelection(defaultBanks.indexOf("+ Agregar nuevo banco..."))
+                dialogBinding.spinnerKeyType.setSelection(bankOptions.indexOf(customBankOption))
                 dialogBinding.tilCustomBank.visibility = View.VISIBLE
                 dialogBinding.etCustomBank.setText(existingKey.type)
             }
@@ -380,28 +391,40 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         dialogBinding.btnSave.setOnClickListener {
+            sessionManager.recordActivity()
+            scheduleRemainingTimeout()
+
+            // Clear previous errors before validating
+            dialogBinding.tilCustomBank.error = null
+            dialogBinding.tilDescription.error = null
+            dialogBinding.tilKeyValue.error = null
+
+            var hasError = false
             var type = dialogBinding.spinnerKeyType.selectedItem.toString()
-            if (type == "+ Agregar nuevo banco...") {
-                val customBank = dialogBinding.etCustomBank.text.toString().trim()
+            if (type == customBankOption) {
+                val customBank = KeyUtils.normalizeField(dialogBinding.etCustomBank.text.toString())
                 if (customBank.isEmpty()) {
                     dialogBinding.tilCustomBank.error = "Escribe el nombre del banco"
-                    return@setOnClickListener
+                    hasError = true
+                } else {
+                    type = customBank
                 }
-                type = customBank
             }
-            
-            val description = dialogBinding.etDescription.text.toString().trim()
-            val value = dialogBinding.etKeyValue.text.toString().trim()
+
+            val description = KeyUtils.normalizeField(dialogBinding.etDescription.text.toString())
+            val value = KeyUtils.normalizeKeyValue(dialogBinding.etKeyValue.text.toString())
 
             if (description.isEmpty()) {
                 dialogBinding.tilDescription.error = "Ingresa una descripción"
-                return@setOnClickListener
+                hasError = true
             }
 
             if (value.isEmpty()) {
                 dialogBinding.tilKeyValue.error = "Ingresa un valor para la llave"
-                return@setOnClickListener
+                hasError = true
             }
+
+            if (hasError) return@setOnClickListener
 
             val currentTime = getCurrentFormattedDate()
 
@@ -426,7 +449,7 @@ class DashboardActivity : AppCompatActivity() {
                             loadKeysList()
                         }
                         is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
+                            dialogBinding.tilKeyValue.error = "Ya tienes esta llave registrada para este banco"
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
@@ -434,12 +457,13 @@ class DashboardActivity : AppCompatActivity() {
                         is StorageOpResult.NotFound -> Unit
                     }
                 } else {
-                    // Update key
+                    // Update key & bump patch version
                     val updatedKey = existingKey.copy(
                         type = type,
                         value = value,
                         description = description,
-                        modificationDate = currentTime
+                        modificationDate = currentTime,
+                        version = KeyUtils.incrementPatchVersion(existingKey.version)
                     )
                     when (val result = storageManager.updateKey(updatedKey)) {
                         is StorageOpResult.Success -> {
@@ -448,7 +472,7 @@ class DashboardActivity : AppCompatActivity() {
                             loadKeysList()
                         }
                         is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = "Esta llave ya existe en el sistema"
+                            dialogBinding.tilKeyValue.error = "Ya tienes esta llave registrada para este banco"
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
