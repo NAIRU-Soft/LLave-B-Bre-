@@ -1,133 +1,120 @@
-# BBre - Sistema de Pagos Inmediatos Colombia
+# BBreApp — Gestor Seguro de Llaves BBre
 
-**Desarrollado por NairuSoft**
+**Desarrollado por NairuSoft · Versión 0.0.1**
 
 ## Descripción
 
-BBre es el nuevo sistema de pagos inmediatos en Colombia, desarrollado por el Banco de la República. Esta aplicación permite enviar y recibir dinero al instante, todos los días y a cualquier hora, sin importar el banco y de forma gratuita.
+**BBreApp** es una aplicación Android **100% offline** diseñada para registrar, consultar, copiar y administrar de forma cifrada las llaves de pago BBre asociadas a distintos bancos o billeteras (celular, cédula, correo electrónico o códigos alfanuméricos únicos).
+
+Todos los registros se almacenan localmente en almacenamiento privado de la app utilizando cifrado **AES-256-GCM** respaldado por **Android Keystore**.
+
+---
 
 ## Características Principales
 
-### 🔐 Seguridad Bancaria
-- **Autenticación Biométrica**: Huella digital y reconocimiento facial
-- **Encriptación AES-256-GCM**: Todos los datos sensibles están encriptados
-- **Android Keystore**: Las claves se almacenan en el hardware seguro del dispositivo
-- **PIN de Seguridad**: Autenticación de dos factores
-- **EncryptedSharedPreferences**: Almacenamiento seguro de credenciales
+### Seguridad y Control de Acceso
+- **Registro e Inicio de Sesión Local**: Validación estricta de usuario y contraseña (mínimo 8 caracteres, sin espacios en blanco).
+- **Derivación de Contraseñas**: Hash con `PBKDF2WithHmacSHA256` (120.000 iteraciones y salt aleatorio de 16 bytes por usuario, comparación en tiempo constante y migración automática desde hashes heredados).
+- **Biometría Fuerte (`BIOMETRIC_STRONG` + `CryptoObject`)**: Desbloqueo opcional con huella o rostro de Clase 3 enlazado criptográficamente a una clave del Keystore invalidable si cambia la biometría del dispositivo.
+- **Almacenamiento Cifrado Atómico**: `usuarios.json` y `llaves.json` cifrados con AES-256-GCM y escrituras atómicas mediante archivo temporal y bloqueo `Mutex` en `Dispatchers.IO`.
+- **Protección de Sesión y Portapapeles**:
+  - `FLAG_SECURE` en login y panel principal (bloqueo de capturas y miniatura en recientes).
+  - Cierre automático de sesión tras **5 minutos de inactividad** medidos con reloj monotónico (`SystemClock.elapsedRealtime()`).
+  - Copia rápida de llaves marcada como contenido sensible (`ClipDescription.EXTRA_IS_SENSITIVE` en Android 13+) con autolimpieza a los 45 segundos.
+- **Reautenticación y Control de Cuenta**: Cambio de contraseña y eliminación definitiva de cuenta (con borrado íntegro de sus llaves) protegidos con contraseña actual y confirmación doble.
 
-### 💰 Funcionalidades BBre
-- **Transferencias Inmediatas**: Envía dinero en segundos usando llaves
-- **Llaves de Identificación**: 
-  - Número de celular
-  - Cédula de ciudadanía
-  - Correo electrónico
-  - Código alfanumérico aleatorio
-- **Límite de Transferencia**: Hasta $12.110.000 COP por transacción
-- **Códigos QR**: Paga escaneando códigos QR BBre
-- **Historial de Transacciones**: Consulta todas tus operaciones
+### Gestión de Llaves (`Mis Llaves`)
+- Listado reactivo con `ListAdapter` + `DiffUtil` y estado vacío claro.
+- Alta y edición con selector de bancos predefinidos + opción **Agregar nuevo banco** (con lista combinada y ordenada de bancos personalizados).
+- Generación de **código alfanumérico aleatorio único** de 10 caracteres desde el formulario de llave.
+- Prevención de llaves duplicadas por usuario (normalizando banco y valor de llave) y versionado semántico automático por parche en cada edición (`0.0.1` -> `0.0.2`).
+- Cuadro de **Información de Llave** con autor histórico (`createdBy`), banco, descripción, valor, fechas de creación/modificación y versión.
 
-### 🎨 Interfaz Moderna
-- Material Design 3
-- Temas personalizados BBre y NairuSoft
-- Animaciones suaves
-- Experiencia de usuario intuitiva
+### Configuración e Información del Sistema (`Configuración`)
+- Actualización de nombre de usuario y/o contraseña (preservando `createdBy` histórico en las llaves existentes).
+- Diálogo de **Información del sistema** con resumen del usuario activo, cantidad de llaves, versión de la app (`BuildConfig.VERSION_NAME`) y última llave modificada.
+- Cierre manual de sesión con limpieza de estado en memoria y navegación limpia a Login.
 
-## Estructura del Proyecto
+---
 
-```
+## Arquitectura y Estructura del Proyecto
+
+Arquitectura **MVVM con capa de Repositorio** (`model/`, `data/`, `security/`, `ui/`):
+
+```text
 BBreApp/
+├── gradle/
+│   ├── libs.versions.toml                  # Catálogo central de versiones (AGP 9.0.1, Kotlin 2.2.10)
+│   └── wrapper/                            # Gradle Wrapper
 ├── app/
-│   ├── src/main/
-│   │   ├── java/com/nairusoft/bbre/
-│   │   │   ├── BBreApplication.kt      # Clase principal de la app
-│   │   │   ├── security/
-│   │   │   │   └── SecurityManager.kt  # Gestión de seguridad
-│   │   │   ├── ui/
-│   │   │   │   ├── SplashActivity.kt   # Pantalla de inicio
-│   │   │   │   ├── LoginActivity.kt    # Login con biometría
-│   │   │   │   ├── DashboardActivity.kt # Panel principal
-│   │   │   │   ├── TransferActivity.kt # Transferencias
-│   │   │   │   └── QRScannerActivity.kt # Escáner QR
-│   │   │   ├── data/                   # Capa de datos
-│   │   │   └── model/                  # Modelos de datos
-│   │   └── res/
-│   │       ├── layout/                 # Diseños XML
-│   │       ├── drawable/               # Recursos gráficos
-│   │       ├── values/                 # Colores, strings, temas
-│   │       └── xml/                    # Configuraciones de seguridad
-│   └── build.gradle.kts
+│   ├── proguard-rules.pro                  # Reglas ProGuard/R8 (incluye kotlinx.serialization)
+│   └── src/
+│       ├── main/
+│       │   ├── AndroidManifest.xml         # Solo USE_BIOMETRIC, allowBackup=false
+│       │   ├── java/com/nairusoft/bbre/
+│       │   │   ├── BBreApplication.kt      # Inicialización segura de SecurityManager
+│       │   │   ├── model/                  # Modelos de dominio, resultados y UiState
+│       │   │   │   ├── BbreModels.kt
+│       │   │   │   └── UiState.kt
+│       │   │   ├── data/                   # Repositorios y gateway testeable
+│       │   │   │   ├── AuthRepository.kt
+│       │   │   │   ├── KeysRepository.kt
+│       │   │   │   └── SecureAuthGateway.kt
+│       │   │   ├── security/               # Criptografía, hashing, sesión, validación y almacenamiento
+│       │   │   │   ├── AuthValidator.kt
+│       │   │   │   ├── KeyUtils.kt
+│       │   │   │   ├── PasswordHasher.kt
+│       │   │   │   ├── SecurityManager.kt
+│       │   │   │   ├── SessionManager.kt
+│       │   │   │   └── StorageManager.kt
+│       │   │   └── ui/                     # Pantallas, ViewModels y adaptadores
+│       │   │       ├── ActivityTransitions.kt
+│       │   │       ├── SplashActivity.kt
+│       │   │       ├── LoginActivity.kt
+│       │   │       ├── LoginViewModel.kt
+│       │   │       ├── DashboardActivity.kt
+│       │   │       ├── DashboardViewModel.kt
+│       │   │       └── KeysAdapter.kt
+│       │   └── res/                        # Layouts Material 3, drawables vectoriales, values(-night), xml
+│       ├── test/                           # Pruebas unitarias JVM (JUnit 4)
+│       └── androidTest/                    # Pruebas instrumentadas (Keystore + Espresso)
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
 
+---
+
 ## Requisitos Técnicos
 
-- **SDK Mínimo**: Android 8.0 (API 26)
-- **SDK Objetivo**: Android 14 (API 34)
-- **Lenguaje**: Kotlin 1.9.20
-- **Arquitectura**: MVVM con Clean Architecture
-
-## Dependencias Principales
-
-- **AndroidX Core**: Componentes básicos de Android
-- **Material Design**: Componentes UI modernos
-- **Security Crypto**: Encriptación segura
-- **Biometric**: Autenticación biométrica
-- **Navigation**: Navegación entre pantallas
-- **Coroutines**: Programación asíncrona
-- **DataStore**: Almacenamiento seguro de preferencias
-
-## Configuración de Seguridad
-
-### Permisos Requeridos
-```xml
-<uses-permission android:name="android.permission.USE_BIOMETRIC" />
-<uses-permission android:name="android.permission.USE_FINGERPRINT" />
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.CAMERA" />
-```
-
-### Network Security
-- HTTPS obligatorio (cleartext traffic deshabilitado)
-- Certificate pinning para APIs del Banco de la República
-- Data extraction rules para prevenir backup de datos sensibles
-
-### ProGuard Rules
-- Ofuscación de código habilitada en release
-- Reglas específicas para mantener clases de seguridad
-
-## Cómo Compilar
-
-1. Clonar el repositorio
-2. Abrir en Android Studio Arctic Fox o superior
-3. Sincronizar Gradle
-4. Ejecutar en emulador o dispositivo físico
-
-```bash
-./gradlew assembleDebug
-```
-
-## Consideraciones de Seguridad
-
-⚠️ **Importante**: Esta aplicación maneja información financiera sensible. Asegúrate de:
-
-1. No hacer commit de claves API o certificados reales
-2. Usar siempre conexiones HTTPS
-3. Validar certificados del servidor
-4. Implementar certificate pinning en producción
-5. Realizar auditorías de seguridad periódicas
-6. Cumplir con regulaciones bancarias colombianas
-
-## Información Legal
-
-- Desarrollado por **NairuSoft**
-- Sistema BBre del **Banco de la República de Colombia**
-- Sujeto a regulaciones financieras colombianas
-
-## Contacto
-
-Para más información sobre BBre, visita el sitio oficial del Banco de la República.
+- **Android mínimo**: Android 8.0 (API 26)
+- **Android objetivo / compilación**: Android 14 (API 34)
+- **JDK**: Java 17 / JDK 21 para compilación Gradle (`jvmTarget = JVM_17`)
+- **AGP**: `9.0.1` · **Kotlin**: `2.2.10`
+- **Dependencias clave**: AndroidX AppCompat/Core/Activity, Material 3, RecyclerView, Biometric, Security Crypto (`1.1.0-alpha06` — pendiente migración planificada a Google Tink + DataStore), Kotlinx Serialization, Kotlinx Coroutines.
+- **Permisos declarados**: únicamente `android.permission.USE_BIOMETRIC`.
+- **Seguridad de red**: `network_security_config.xml` con `cleartextTrafficPermitted="false"` y sin certificados de usuario confiables ni pines vacíos.
 
 ---
 
-© 2024 NairuSoft. Todos los derechos reservados.
+## Compilación y Pruebas
+
+Desde el directorio `BBreApp/`:
+
+```bash
+# Ejecutar pruebas unitarias JVM
+./gradlew testDebugUnitTest
+
+# Ejecutar verificación Lint
+./gradlew lint
+
+# Compilar APK Debug
+./gradlew assembleDebug
+
+# Compilar APK Release con R8/ProGuard y resource shrinking
+./gradlew assembleRelease
+
+# Ejecutar pruebas instrumentadas en dispositivo/emulador conectado
+./gradlew connectedDebugAndroidTest
+```
+---
+© 2024–2026 NairuSoft. Todos los derechos reservados.

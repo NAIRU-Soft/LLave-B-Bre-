@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.nairusoft.bbre.BuildConfig
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
@@ -637,7 +638,7 @@ class DashboardActivity : AppCompatActivity() {
                     R.string.dialog_system_info_base,
                     activeUser,
                     currentUserKeys.size,
-                    "0.0.1"
+                    BuildConfig.VERSION_NAME
                 ) + keysSummary
             )
             .setPositiveButton(getString(R.string.btn_accept), null)

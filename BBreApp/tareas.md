@@ -12,7 +12,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
 
 ## 1. Prioridad Crítica (Seguridad, Pérdida de Datos y Bugs Severos)
 
-### - [ ] T-01: Corregir cierre de sesión por inactividad (5 min) y protección al pasar a segundo plano
+### - [x] T-01: Corregir cierre de sesión por inactividad (5 min) y protección al pasar a segundo plano
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`, `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`
 - **Problema actual:**
   - En `DashboardActivity.onPause()` (líneas 51-54) se ejecuta `logoutHandler.removeCallbacks(logoutRunnable)`, lo que **detiene el temporizador de 5 minutos** cada vez que el usuario minimiza la app o bloquea la pantalla. Al regresar (`onResume()`), el contador vuelve a empezar desde cero, permitiendo sesiones abiertas indefinidamente.
@@ -25,7 +25,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   4. En `LoginActivity.onCreate()`, limpiar cualquier `"session_username"` residual como defensa en profundidad.
 - **Criterio de aceptación:** Si el usuario deja la app inactiva o en segundo plano durante 5 minutos, al volver se cierra la sesión obligatoriamente y se solicita autenticación nuevamente.
 
-### - [ ] T-02: Evitar pérdida silenciosa de datos (`usuarios.json` / `llaves.json`), agregar escritura atómica y sincronización
+### - [x] T-02: Evitar pérdida silenciosa de datos (`usuarios.json` / `llaves.json`), agregar escritura atómica y sincronización
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/security/StorageManager.kt`, `app/src/main/java/com/nairusoft/bbre/security/SecurityManager.kt`
 - **Problema actual:**
   - En `StorageManager.getUsers()` (líneas 56-67) y `getKeys()` (líneas 136-147), ante cualquier error de lectura, descifrado o deserialización JSON, se captura la excepción y se retorna `emptyList()`. Si inmediatamente después se llama a `addUser()`, `addKey()` o `updateKey()`, se sobrescribe el archivo con solo el elemento nuevo, **borrando irreversiblemente todos los usuarios o llaves existentes**.
@@ -38,7 +38,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   4. Mover todas las operaciones de `StorageManager` a `Dispatchers.IO`.
 - **Criterio de aceptación:** Un fallo de descifrado nunca sobrescribe `usuarios.json` ni `llaves.json`; un cierre inesperado durante el guardado no corrompe el archivo existente.
 
-### - [ ] T-03: Reemplazar hashing SHA-256 sin salt por KDF seguro para contraseñas (`PBKDF2WithHmacSHA256` o Argon2)
+### - [x] T-03: Reemplazar hashing SHA-256 sin salt por KDF seguro para contraseñas (`PBKDF2WithHmacSHA256` o Argon2)
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/security/SecurityManager.kt`, `app/src/main/java/com/nairusoft/bbre/security/StorageManager.kt`, `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`, `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`
 - **Problema actual:**
   - `SecurityManager.hashData()` (líneas 248-256) calcula un `SHA-256` simple sin salt ni factor de costo computacional. Dos usuarios con la misma contraseña generan el mismo hash y son vulnerables a ataques de diccionario/fuerza bruta rápida.
@@ -48,7 +48,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   2. Implementar derivación de clave con `SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")` (mínimo 120.000 iteraciones y clave de 256 bits) o Argon2id, y verificar con `MessageDigest.isEqual`.
 - **Criterio de aceptación:** Cada usuario tiene un salt aleatorio único y sus credenciales se verifican mediante KDF resistente a fuerza bruta en tiempo constante.
 
-### - [ ] T-04: Asegurar autenticación biométrica con `CryptoObject` y corregir regeneración destructiva de clave
+### - [x] T-04: Asegurar autenticación biométrica con `CryptoObject` y corregir regeneración destructiva de clave
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`, `app/src/main/java/com/nairusoft/bbre/security/SecurityManager.kt`
 - **Problema actual:**
   - `LoginActivity.setupBiometricButton()` (línea 87) llama a `securityManager.generateBiometricKey(BIOMETRIC_KEY_ALIAS)` cada vez que se abre el login, y `SecurityManager.generateBiometricKey()` (líneas 82-84) **elimina la clave existente del Keystore y crea una nueva**.
@@ -59,7 +59,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   3. Validar que el usuario asociado siga existiendo en `StorageManager.getUsers()` antes de iniciar sesión.
 - **Criterio de aceptación:** La biometría desbloquea una operación criptográfica real en Android Keystore y falla de forma controlada si cambia el enrolamiento biométrico o si la cuenta ya no existe.
 
-### - [ ] T-05: Corregir doble espera de 6 segundos y fuga de `Handler` en `SplashActivity`
+### - [x] T-05: Corregir doble espera de 6 segundos y fuga de `Handler` en `SplashActivity`
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/SplashActivity.kt`
 - **Problema actual:**
   - En `navigateToLogin()` (líneas 62-74), `Handler.postDelayed(..., 3000)` espera 3 segundos y dentro lanza `lifecycleScope.launch { delay(3000) }` que espera otros 3 segundos, haciendo que el Splash dure **6 segundos** en lugar de `splashTimeOut = 3000`.
@@ -71,7 +71,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
 
 ## 2. Prioridad Alta (Hardening, Build/Gradle y Bugs Funcionales)
 
-### - [ ] T-06: Añadir `FLAG_SECURE` en pantallas sensibles y marcar portapapeles como confidencial (Android 13+)
+### - [x] T-06: Añadir `FLAG_SECURE` en pantallas sensibles y marcar portapapeles como confidencial (Android 13+)
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`, `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`
 - **Problema actual:**
   - Ninguna Activity establece `WindowManager.LayoutParams.FLAG_SECURE`, permitiendo capturas de pantalla y que el sistema muestre las llaves en la vista previa de "Apps Recientes".
@@ -80,7 +80,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   1. Configurar `window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)` en `LoginActivity` y `DashboardActivity`.
   2. En `copyToClipboard()`, añadir `PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }` a `ClipData.description.extras` en API 33+ (y opcionalmente limpiar el portapapeles tras 30-60 s).
 
-### - [ ] T-07: Corregir configuración de Gradle, versiones de plugins, ProGuard/R8 y wrapper
+### - [x] T-07: Corregir configuración de Gradle, versiones de plugins, ProGuard/R8 y wrapper
 - **Archivos:** `build.gradle.kts`, `app/build.gradle.kts`, `app/proguard-rules.pro`, `gradle/wrapper/`
 - **Problema actual:**
   - `app/build.gradle.kts` tiene `isDebuggable = false` e `isMinifyEnabled = true` en el buildType `debug` (impide depurar y ralentiza el desarrollo).
@@ -96,7 +96,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   4. Añadir reglas ProGuard explícitas para `kotlinx.serialization` y las clases de modelo (`User`, `UserKey`), y reactivar `lint` en builds de release.
   5. Generar los archivos completos del Gradle Wrapper (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`).
 
-### - [ ] T-08: Limpiar permisos innecesarios en `AndroidManifest.xml` y corregir `network_security_config.xml`
+### - [x] T-08: Limpiar permisos innecesarios en `AndroidManifest.xml` y corregir `network_security_config.xml`
 - **Archivos:** `app/src/main/AndroidManifest.xml`, `app/src/main/res/xml/network_security_config.xml`
 - **Problema actual:**
   - `AndroidManifest.xml` solicita `CAMERA` (con `<uses-feature>` de cámara), `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_FINGERPRINT` (deprecado desde API 28) y declara `<uses-library android:name="org.apache.http.legacy" />`, aunque la app ya no tiene escáner QR ni llamadas de red.
@@ -107,7 +107,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   2. Quitar el bloqueo rígido `screenOrientation="portrait"` y asegurar que los layouts sean responsivos con `ScrollView` / `ConstraintLayout`.
   3. Eliminar el `<pin-set>` vacío/expirado y retirar `<certificates src="user" />` (o actualizar pins reales solo si se integra backend HTTPS en el futuro).
 
-### - [ ] T-09: Reforzar seguridad y manejo de errores en "Configuración" de perfil
+### - [x] T-09: Reforzar seguridad y manejo de errores en "Configuración" de perfil
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`
 - **Problema actual:**
   - En `setupSettingsTab()` (líneas 348-373), si `foundUser == null` (por ejemplo tras un fallo de lectura), el botón "Guardar Cambios" no muestra ningún mensaje ni error.
@@ -118,7 +118,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   2. Mostrar un mensaje claro si no se encuentra el usuario al guardar cambios.
   3. Reutilizar `performManualLogout()` desde `btnLogout`.
 
-### - [ ] T-10: Corregir errores de validación, versionado de llaves y bancos personalizados en el diálogo de llaves
+### - [x] T-10: Corregir errores de validación, versionado de llaves y bancos personalizados en el diálogo de llaves
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`, `app/src/main/java/com/nairusoft/bbre/security/StorageManager.kt`, `app/src/main/res/layout/dialog_key.xml`
 - **Problema actual:**
   - En `showKeyDialog()` (líneas 254-316), los errores previos (`tilCustomBank.error`, `tilDescription.error`, `tilKeyValue.error`) nunca se limpian (`= null`) cuando el usuario corrige un campo y falla otro, o al cambiar de banco en el `Spinner`.
@@ -135,14 +135,14 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
 
 ## 3. Prioridad Media (UI/UX, Material 3, Accesibilidad y Funcionalidades)
 
-### - [ ] T-11: Solucionar incompatibilidad con Modo Oscuro (`DayNight`) y mejorar el contraste visual
+### - [x] T-11: Solucionar incompatibilidad con Modo Oscuro (`DayNight`) y mejorar el contraste visual
 - **Archivos:** `app/src/main/res/values/themes.xml`, `app/src/main/res/values/colors.xml`, `app/src/main/res/layout/*.xml`
 - **Problema actual:**
   - `Theme.BBreApp` usa `Theme.Material3.DayNight.NoActionBar`, pero no existe `values-night/colors.xml` ni `values-night/themes.xml`, y los XML fijan `@color/black`, `@color/white` y `@color/background_primary` (`#FAFAFA`). En teléfonos con Modo Oscuro activo, los componentes del sistema y `AlertDialog` adoptan fondo oscuro mientras los textos quedan en negro o con contraste deficiente.
   - En `dialog_key.xml` (línea 40), el `Spinner` usa `@drawable/security_badge_background` (`#40FFFFFF` pensado para el fondo oscuro del Splash), resultando casi invisible sobre `#FAFAFA`.
 - **Mejora propuesta:** Usar atributos semánticos de Material 3 (`?attr/colorSurface`, `?attr/colorOnSurface`, `?attr/colorPrimary`, etc.), crear paleta `values-night` dedicada (o definir explícitamente soporte Light/Dark consistente) y reemplazar `AlertDialog.Builder` por `MaterialAlertDialogBuilder`.
 
-### - [ ] T-12: Modernizar componentes UI y eliminar creación dinámica de vistas por índice
+### - [x] T-12: Modernizar componentes UI y eliminar creación dinámica de vistas por índice
 - **Archivos:** `app/src/main/res/layout/activity_dashboard.xml`, `app/src/main/res/layout/dialog_key.xml`, `app/src/main/res/layout/item_key.xml`, `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`
 - **Problema actual:**
   - En `DashboardActivity.setupSettingsTab()` (líneas 385-408), el botón `"Información de Llave y Sistema"` se crea en Kotlin y se inserta con `addView(btnSystemInfo, 3)`, acoplado frágilmente al orden de hijos en `activity_dashboard.xml`.
@@ -154,7 +154,7 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   2. Reemplazar el `LinearLayout` inferior por `com.google.android.material.bottomnavigation.BottomNavigationView` y el `Spinner` por un `ExposedDropdownMenuBox` de Material 3.
   3. Sustituir los `@android:drawable/ic_menu_*` e `ic_input_add` por iconos vectoriales Material uniformes, ampliar áreas táctiles a `48dp` (o usar `touchDelegate`) y añadir `maxLines`/`ellipsize` en `item_key.xml`.
 
-### - [ ] T-13: Mejorar layout, validaciones y usabilidad de `LoginActivity`
+### - [x] T-13: Mejorar layout, validaciones y usabilidad de `LoginActivity`
 - **Archivos:** `app/src/main/res/layout/activity_login.xml`, `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`
 - **Problema actual:**
   - `activity_login.xml` no tiene `ScrollView`: en pantallas pequeñas, teclado abierto o texto grande, los botones inferiores (`btnAction`, `btnBiometric`) pueden quedar recortados.
@@ -168,21 +168,21 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   3. Mostrar el usuario asociado en el botón/subtítulo biométrico (ej. `"Ingresar con huella (usuario)"`), eliminar el `delay(1000)` artificial, corregir ortografía y no recortar espacios silenciosamente en contraseñas (o prohibir espacios explícitamente en validación).
   4. Habilitar `enableEdgeToEdge()` con manejo correcto de `WindowInsets` (status bar, navigation bar e IME/teclado).
 
-### - [ ] T-14: Migrar APIs deprecadas (`onBackPressed` y `overridePendingTransition`)
+### - [x] T-14: Migrar APIs deprecadas (`onBackPressed` y `overridePendingTransition`)
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/SplashActivity.kt`, `app/src/main/java/com/nairusoft/bbre/ui/LoginActivity.kt`
 - **Problema actual:**
   - Ambas Activities sobrescriben `onBackPressed()` (deprecado en API 33 y reportado como warning en `spec.md`). Además en `SplashActivity` el comentario indica impedir volver atrás, pero termina llamando a `super.onBackPressed()`.
   - Se usa `overridePendingTransition()` (deprecado en API 34).
 - **Mejora propuesta:** Reemplazar por `onBackPressedDispatcher.addCallback(this) { ... }` y `overrideActivityTransition()` para API 34+ (con fallback en versiones inferiores).
 
-### - [ ] T-15: Limpiar `strings.xml` y eliminar textos hardcodeados en Kotlin/XML
+### - [x] T-15: Limpiar `strings.xml` y eliminar textos hardcodeados en Kotlin/XML
 - **Archivos:** `app/src/main/res/values/strings.xml`, layouts y Activities
 - **Problema actual:**
   - `strings.xml` conserva ~30 strings obsoletos de transferencias, saldo, escáner QR, límite `$12.110.000`, historial y PIN (`dashboard_balance`, `transfer_*`, `qr_*`, `error_insufficient_funds`, `login_phone_hint`, etc.), y `login_subtitle` dice `"Ingresa con tu llave"`.
   - Casi todos los textos actuales de Login, Registro, Mis Llaves, Diálogos, Toasts y Configuración están escritos directamente en código Kotlin y XML.
 - **Mejora propuesta:** Depurar `strings.xml` eliminando lo obsoleto, corregir `login_subtitle` y `"Eliminar cuenta permanentemente"`, y externalizar todos los textos visibles a `strings.xml`.
 
-### - [ ] T-16: Añadir funcionalidades prácticas en "Mis Llaves" (búsqueda, generador aleatorio, copiar explícito y respaldo cifrado)
+### - [x] T-16: Añadir generador aleatorio único en "Mis Llaves" *(alcance D-06; omitidos buscador, icono copiar extra y respaldo por decisión del usuario)*
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/DashboardActivity.kt`, `app/src/main/res/layout/activity_dashboard.xml`, `app/src/main/res/layout/dialog_key.xml`, `app/src/main/res/layout/item_key.xml`
 - **Mejora propuesta:**
   1. **Buscador/Filtro** en la barra superior o sobre el `RecyclerView` para filtrar por banco, descripción o llave.
@@ -194,17 +194,17 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
 
 ## 4. Prioridad Baja (Arquitectura, Mantenibilidad, Testing y Documentación)
 
-### - [ ] T-17: Refactorizar hacia arquitectura MVVM con capa de Repositorio
+### - [x] T-17: Refactorizar hacia arquitectura MVVM con capa de Repositorio
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/...`
 - **Problema actual:** Aunque `README.md` declara "MVVM con Clean Architecture", toda la lógica de UI, validación, cifrado, sesión y almacenamiento reside en `LoginActivity` y `DashboardActivity`.
 - **Mejora propuesta:** Separar responsabilidades en `model/` (`User`, `UserKey`, `UiState`), `data/` (`AuthRepository`, `KeysRepository` con `StateFlow` y `Dispatchers.IO`), y `ui/` (`LoginViewModel`, `DashboardViewModel` o `KeysFragment`/`SettingsFragment` con `Navigation` o `FragmentContainerView`).
 
-### - [ ] T-18: Migrar `KeysAdapter` a `ListAdapter` con `DiffUtil`
+### - [x] T-18: Migrar `KeysAdapter` a `ListAdapter` con `DiffUtil`
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/ui/KeysAdapter.kt`
 - **Problema actual:** `KeysAdapter.updateData()` usa `notifyDataSetChanged()` (línea 42), re-vinculando todos los ítems sin animaciones ni cálculo diferencial.
 - **Mejora propuesta:** Heredar de `androidx.recyclerview.widget.ListAdapter<UserKey, KeysAdapter.KeyViewHolder>` usando `DiffUtil.ItemCallback<UserKey>` comparando por `id` y contenido.
 
-### - [ ] T-19: Limpiar código muerto, inicialización duplicada y manejo de fallos de Keystore
+### - [x] T-19: Limpiar código muerto, inicialización duplicada y manejo de fallos de Keystore
 - **Archivos:** `app/src/main/java/com/nairusoft/bbre/BBreApplication.kt`, `app/src/main/java/com/nairusoft/bbre/security/SecurityManager.kt`
 - **Problema actual:**
   - `BBreApplication.generateMasterKey()` crea `MasterKey` y `EncryptedSharedPreferences` pero descarta la referencia, y `SecurityManager` vuelve a crearlos en `init`.
@@ -214,14 +214,14 @@ Sin embargo, existen **riesgos críticos de seguridad**, **bugs funcionales** (c
   - No hay manejo de excepción si `EncryptedSharedPreferences.create` falla por corrupción de Keystore.
 - **Mejora propuesta:** Unificar la inicialización de `EncryptedSharedPreferences` en un solo lugar con manejo seguro de errores, eliminar el código muerto heredado de transferencias y usar `Log` solo en builds debug.
 
-### - [ ] T-20: Implementar pruebas unitarias y de instrumentación (JUnit + Espresso)
+### - [x] T-20: Implementar pruebas unitarias y de instrumentación (JUnit + Espresso)
 - **Archivos:** `app/src/test/...`, `app/src/androidTest/...` (carpetas actualmente inexistentes)
 - **Problema actual:** `app/build.gradle.kts` declara `junit`, `androidx.test.ext:junit` y `espresso-core`, pero no existe ni un solo test en el proyecto.
 - **Mejora propuesta:**
   - **Unit tests:** hashing/KDF y verificación de contraseñas, validaciones de formularios, lógica de unicidad/versionado de llaves, lógica de expiración de sesión de 5 minutos, serialización JSON de `User` y `UserKey`.
   - **Instrumentation tests:** flujos completos de registro, login, creación/edición/copiado/eliminación de llaves, actualización de perfil y borrado de cuenta.
 
-### - [ ] T-21: Actualizar documentación, versionado y control de archivos en Git
+### - [x] T-21: Actualizar documentación, versionado y control de archivos en Git
 - **Archivos:** `README.md`, `spec.md`, `app/build.gradle.kts`, `.gitignore`
 - **Problema actual:**
   - `README.md` describe una app con transferencias de hasta `$12.110.000 COP`, QR, historial, `TransferActivity`, `QRScannerActivity`, Kotlin `1.9.20` y arquitectura MVVM que no corresponde al proyecto actual.
