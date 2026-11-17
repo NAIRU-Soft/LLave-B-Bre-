@@ -126,7 +126,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun autoLogout() {
         if (isRedirectingToLogin) return
-        Toast.makeText(this, "Sesión cerrada por inactividad", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, getString(R.string.session_expired_inactivity), Toast.LENGTH_LONG).show()
         performManualLogout()
     }
 
@@ -193,7 +193,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "Mis Llaves"
+        supportActionBar?.title = getString(R.string.nav_my_keys)
     }
 
     private fun navigateToLogin() {
@@ -233,12 +233,12 @@ class DashboardActivity : AppCompatActivity() {
         if (showKeys) {
             binding.layoutKeys.visibility = View.VISIBLE
             binding.layoutSettings.visibility = View.GONE
-            supportActionBar?.title = "Mis Llaves"
+            supportActionBar?.title = getString(R.string.nav_my_keys)
             loadKeysList()
         } else {
             binding.layoutKeys.visibility = View.GONE
             binding.layoutSettings.visibility = View.VISIBLE
-            supportActionBar?.title = "Configuración"
+            supportActionBar?.title = getString(R.string.nav_settings)
 
             // Reload user info into settings fields
             binding.etSettingsUsername.setText(currentUser)
@@ -301,7 +301,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("BBre Key", text)
+        val clip = ClipData.newPlainText(getString(R.string.clipboard_label), text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             clip.description.extras = PersistableBundle().apply {
                 putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
@@ -311,7 +311,7 @@ class DashboardActivity : AppCompatActivity() {
         lastCopiedKey = text
         clipboardHandler.removeCallbacks(clearClipboardRunnable)
         clipboardHandler.postDelayed(clearClipboardRunnable, 45_000L)
-        Toast.makeText(this, "Llave copiada al portapapeles (se limpiará en 45 s)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.clipboard_copied_msg), Toast.LENGTH_SHORT).show()
     }
 
     private fun clearCopiedClipboardIfUnchanged() {
@@ -336,18 +336,21 @@ class DashboardActivity : AppCompatActivity() {
     private fun showKeyInfoDialog(key: UserKey) {
         activeDialog?.dismiss()
         activeDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Información de Llave")
+            .setTitle(getString(R.string.dialog_key_info_title))
             .setMessage(
-                "• Creado por: ${if(key.createdBy.isEmpty()) currentUser else key.createdBy}\n" +
-                "• Banco: ${key.type}\n" +
-                "• Descripción: ${if(key.description.isEmpty()) "Sin descripción" else key.description}\n" +
-                "• Valor de Llave: ${key.value}\n" +
-                "• Fecha de Creación: ${if(key.creationDate.isEmpty()) "Desconocido" else key.creationDate}\n" +
-                "• Fecha de Modificación: ${if(key.modificationDate.isEmpty()) "Sin modificaciones" else key.modificationDate}\n" +
-                "• Versión más reciente: ${key.version}"
+                getString(
+                    R.string.dialog_key_info_body,
+                    key.createdBy.ifEmpty { currentUser },
+                    key.type,
+                    key.description.ifEmpty { getString(R.string.value_no_description) },
+                    key.value,
+                    key.creationDate.ifEmpty { getString(R.string.value_unknown) },
+                    key.modificationDate.ifEmpty { getString(R.string.value_no_modifications) },
+                    key.version
+                )
             )
-            .setPositiveButton("Copiar Llave") { _, _ -> copyToClipboard(key.value) }
-            .setNegativeButton("Cerrar", null)
+            .setPositiveButton(getString(R.string.btn_copy_key)) { _, _ -> copyToClipboard(key.value) }
+            .setNegativeButton(getString(R.string.btn_close), null)
             .show()
     }
 
@@ -359,10 +362,14 @@ class DashboardActivity : AppCompatActivity() {
             .create()
         activeDialog = dialog
 
-        dialogBinding.tvDialogTitle.text = if (existingKey == null) "Agregar Nueva Llave" else "Modificar Llave"
+        dialogBinding.tvDialogTitle.text = if (existingKey == null) {
+            getString(R.string.dialog_add_key_title)
+        } else {
+            getString(R.string.dialog_edit_key_title)
+        }
 
         // Merge base banks with custom banks already saved by the user (sorted, no duplicates)
-        val customBankOption = "+ Agregar nuevo banco..."
+        val customBankOption = getString(R.string.option_add_new_bank)
         val bankOptions = KeyUtils.buildBankOptions(currentUserKeys, customBankOption)
         val bankAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, bankOptions)
         dialogBinding.actvKeyType.setAdapter(bankAdapter)
@@ -431,12 +438,12 @@ class DashboardActivity : AppCompatActivity() {
             var hasError = false
             var type = KeyUtils.normalizeField(dialogBinding.actvKeyType.text.toString())
             if (type.isEmpty()) {
-                dialogBinding.tilKeyType.error = "Selecciona un banco"
+                dialogBinding.tilKeyType.error = getString(R.string.error_select_bank)
                 hasError = true
             } else if (type == customBankOption) {
                 val customBank = KeyUtils.normalizeField(dialogBinding.etCustomBank.text.toString())
                 if (customBank.isEmpty()) {
-                    dialogBinding.tilCustomBank.error = "Escribe el nombre del banco"
+                    dialogBinding.tilCustomBank.error = getString(R.string.error_custom_bank_empty)
                     hasError = true
                 } else {
                     type = customBank
@@ -447,12 +454,12 @@ class DashboardActivity : AppCompatActivity() {
             val value = KeyUtils.normalizeKeyValue(dialogBinding.etKeyValue.text.toString())
 
             if (description.isEmpty()) {
-                dialogBinding.tilDescription.error = "Ingresa una descripción"
+                dialogBinding.tilDescription.error = getString(R.string.error_description_empty)
                 hasError = true
             }
 
             if (value.isEmpty()) {
-                dialogBinding.tilKeyValue.error = "Ingresa un valor para la llave"
+                dialogBinding.tilKeyValue.error = getString(R.string.error_key_value_empty)
                 hasError = true
             }
 
@@ -476,12 +483,12 @@ class DashboardActivity : AppCompatActivity() {
                     )
                     when (val result = storageManager.addKey(newKey)) {
                         is StorageOpResult.Success -> {
-                            Toast.makeText(this@DashboardActivity, "Llave agregada exitosamente", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_added), Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                             loadKeysList()
                         }
                         is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = "Ya tienes esta llave registrada para este banco"
+                            dialogBinding.tilKeyValue.error = getString(R.string.error_duplicate_key)
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
@@ -499,18 +506,18 @@ class DashboardActivity : AppCompatActivity() {
                     )
                     when (val result = storageManager.updateKey(updatedKey)) {
                         is StorageOpResult.Success -> {
-                            Toast.makeText(this@DashboardActivity, "Llave modificada exitosamente", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_updated), Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                             loadKeysList()
                         }
                         is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = "Ya tienes esta llave registrada para este banco"
+                            dialogBinding.tilKeyValue.error = getString(R.string.error_duplicate_key)
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
                         }
                         is StorageOpResult.NotFound -> {
-                            Toast.makeText(this@DashboardActivity, "No se encontró la llave a modificar", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@DashboardActivity, getString(R.string.error_key_not_found), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -523,13 +530,13 @@ class DashboardActivity : AppCompatActivity() {
     private fun showDeleteKeyConfirmation(userKey: UserKey) {
         activeDialog?.dismiss()
         activeDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Eliminar Llave")
-            .setMessage("¿Estás seguro de que deseas eliminar esta llave? Esta acción no se puede deshacer.")
-            .setPositiveButton("Eliminar") { _, _ ->
+            .setTitle(getString(R.string.dialog_delete_key_title))
+            .setMessage(getString(R.string.dialog_delete_key_message))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                 lifecycleScope.launch {
                     when (val result = storageManager.deleteKey(userKey.id)) {
                         is StorageOpResult.Success -> {
-                            Toast.makeText(this@DashboardActivity, "Llave eliminada", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_deleted), Toast.LENGTH_SHORT).show()
                             loadKeysList()
                         }
                         is StorageOpResult.Error -> {
@@ -539,7 +546,7 @@ class DashboardActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -554,22 +561,22 @@ class DashboardActivity : AppCompatActivity() {
             val newPassword = binding.etSettingsPassword.text?.toString() ?: ""
 
             if (newUsername.isEmpty()) {
-                binding.tilSettingsUsername.error = "El usuario no puede estar vacío"
+                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_empty)
                 return@setOnClickListener
             }
             if (newUsername.any { it.isWhitespace() }) {
-                binding.tilSettingsUsername.error = "El usuario no debe contener espacios"
+                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_spaces)
                 return@setOnClickListener
             }
             binding.tilSettingsUsername.error = null
 
             if (newPassword.isNotEmpty()) {
                 if (newPassword.any { it.isWhitespace() }) {
-                    binding.tilSettingsPassword.error = "La contraseña no debe contener espacios"
+                    binding.tilSettingsPassword.error = getString(R.string.error_password_spaces)
                     return@setOnClickListener
                 }
                 if (newPassword.length < 8) {
-                    binding.tilSettingsPassword.error = "La nueva contraseña debe tener al menos 8 caracteres"
+                    binding.tilSettingsPassword.error = getString(R.string.error_new_password_min_length)
                     return@setOnClickListener
                 }
             }
@@ -587,14 +594,14 @@ class DashboardActivity : AppCompatActivity() {
                 if (foundUser == null) {
                     Toast.makeText(
                         this@DashboardActivity,
-                        "No se encontró el usuario actual. Inicia sesión nuevamente.",
+                        getString(R.string.error_current_user_missing),
                         Toast.LENGTH_LONG
                     ).show()
                     return@launch
                 }
 
                 if (newUsername == foundUser.username && newPassword.isEmpty()) {
-                    Toast.makeText(this@DashboardActivity, "No hay cambios para guardar", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@DashboardActivity, getString(R.string.msg_no_changes), Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
@@ -619,18 +626,18 @@ class DashboardActivity : AppCompatActivity() {
                                 binding.etSettingsPassword.text?.clear()
                                 Toast.makeText(
                                     this@DashboardActivity,
-                                    "Perfil actualizado exitosamente",
+                                    getString(R.string.msg_profile_updated),
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 switchTab(true)
                             }
                             is StorageOpResult.Duplicate -> {
-                                binding.tilSettingsUsername.error = "El nombre de usuario ya está en uso"
+                                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_taken)
                             }
                             is StorageOpResult.NotFound -> {
                                 Toast.makeText(
                                     this@DashboardActivity,
-                                    "No se encontró el usuario para actualizar.",
+                                    getString(R.string.error_user_update_not_found),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -643,8 +650,8 @@ class DashboardActivity : AppCompatActivity() {
 
                 if (newPassword.isNotEmpty()) {
                     requestReauthentication(
-                        title = "Confirmar identidad",
-                        message = "Ingresa tu contraseña actual para cambiar tu contraseña.",
+                        title = getString(R.string.dialog_reauth_title),
+                        message = getString(R.string.dialog_reauth_password_change_msg),
                         onAuthenticated = applyProfileUpdate
                     )
                 } else {
@@ -670,27 +677,29 @@ class DashboardActivity : AppCompatActivity() {
         activeDialog?.dismiss()
         val latestKey = currentUserKeys.maxByOrNull { it.modificationDate.ifEmpty { it.creationDate } }
         val keysSummary = if (latestKey != null) {
-            "\n\nÚltima llave registrada:\n" +
-                "• Nombre/Banco: ${latestKey.type}\n" +
-                "• Creado por: ${latestKey.createdBy.ifEmpty { currentUser }}\n" +
-                "• Fecha de creación: ${latestKey.creationDate.ifEmpty { "Desconocida" }}\n" +
-                "• Fecha de modificación: ${latestKey.modificationDate.ifEmpty { "Sin modificaciones" }}\n" +
-                "• Versión de llave: ${latestKey.version}"
+            getString(
+                R.string.dialog_system_info_latest_key,
+                latestKey.type,
+                latestKey.createdBy.ifEmpty { currentUser },
+                latestKey.creationDate.ifEmpty { getString(R.string.value_unknown) },
+                latestKey.modificationDate.ifEmpty { getString(R.string.value_no_modifications) },
+                latestKey.version
+            )
         } else {
-            "\n\n• Llaves registradas: 0"
+            getString(R.string.dialog_system_info_no_keys)
         }
 
         activeDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Información de Llave y Sistema")
+            .setTitle(getString(R.string.dialog_system_info_title))
             .setMessage(
-                "• Aplicación: BBre - NairuSoft\n" +
-                "• Desarrollado por: NairuSoft\n" +
-                "• Usuario activo: $currentUser\n" +
-                "• Total de llaves: ${currentUserKeys.size}\n" +
-                "• Versión más reciente: 0.0.1" +
-                keysSummary
+                getString(
+                    R.string.dialog_system_info_base,
+                    currentUser,
+                    currentUserKeys.size,
+                    "0.0.1"
+                ) + keysSummary
             )
-            .setPositiveButton("Aceptar", null)
+            .setPositiveButton(getString(R.string.btn_accept), null)
             .show()
     }
 
@@ -719,11 +728,13 @@ class DashboardActivity : AppCompatActivity() {
             null,
             com.google.android.material.R.attr.textInputOutlinedStyle
         ).apply {
-            hint = "Contraseña actual"
+            hint = getString(R.string.hint_current_password)
             endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+            errorIconDrawable = null
         }
         val etCurrentPassword = TextInputEditText(tilCurrentPassword.context).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            doAfterTextChanged { tilCurrentPassword.error = null }
         }
         tilCurrentPassword.addView(etCurrentPassword)
         container.addView(tilCurrentPassword)
@@ -731,8 +742,8 @@ class DashboardActivity : AppCompatActivity() {
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setView(container)
-            .setPositiveButton("Confirmar", null)
-            .setNegativeButton("Cancelar", null)
+            .setPositiveButton(getString(R.string.btn_confirm), null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .create()
 
         activeDialog = dialog
@@ -741,7 +752,7 @@ class DashboardActivity : AppCompatActivity() {
             positiveBtn.setOnClickListener {
                 val enteredPassword = etCurrentPassword.text?.toString() ?: ""
                 if (enteredPassword.isEmpty()) {
-                    tilCurrentPassword.error = "Ingresa tu contraseña actual"
+                    tilCurrentPassword.error = getString(R.string.error_current_password_empty)
                     return@setOnClickListener
                 }
                 tilCurrentPassword.error = null
@@ -762,7 +773,7 @@ class DashboardActivity : AppCompatActivity() {
                                 dialog.dismiss()
                                 onAuthenticated()
                             } else {
-                                tilCurrentPassword.error = "Contraseña actual incorrecta"
+                                tilCurrentPassword.error = getString(R.string.error_current_password_wrong)
                             }
                         }
                     }
@@ -775,12 +786,12 @@ class DashboardActivity : AppCompatActivity() {
     private fun showDeleteAccountConfirmation() {
         activeDialog?.dismiss()
         activeDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Eliminar Cuenta")
-            .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta '$currentUser'? Se eliminarán tu perfil y todas tus llaves registradas. Esta acción no se puede deshacer.")
-            .setPositiveButton("Continuar") { _, _ ->
+            .setTitle(getString(R.string.dialog_delete_account_title))
+            .setMessage(getString(R.string.dialog_delete_account_message, currentUser))
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 requestReauthentication(
-                    title = "Confirmar eliminación",
-                    message = "Por seguridad, ingresa tu contraseña actual para eliminar permanentemente tu cuenta y tus llaves."
+                    title = getString(R.string.dialog_delete_account_reauth_title),
+                    message = getString(R.string.dialog_delete_account_reauth_message)
                 ) {
                     lifecycleScope.launch {
                         when (val result = storageManager.deleteUser(currentUser)) {
@@ -789,7 +800,7 @@ class DashboardActivity : AppCompatActivity() {
                                 securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
                                 Toast.makeText(
                                     this@DashboardActivity,
-                                    "Cuenta eliminada exitosamente",
+                                    getString(R.string.msg_account_deleted),
                                     Toast.LENGTH_LONG
                                 ).show()
                                 performManualLogout()
@@ -800,7 +811,7 @@ class DashboardActivity : AppCompatActivity() {
                             is StorageOpResult.NotFound -> {
                                 Toast.makeText(
                                     this@DashboardActivity,
-                                    "No se encontró la cuenta actual.",
+                                    getString(R.string.error_account_not_found),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -809,7 +820,7 @@ class DashboardActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 }

@@ -116,11 +116,11 @@ class LoginActivity : AppCompatActivity() {
     private fun updateModeUI() {
         if (isLoginMode) {
             binding.tvWelcome.text = getString(R.string.login_title)
-            binding.tvSubtitle.text = "Inicia sesión con tu usuario y contraseña"
-            binding.tilUsername.hint = "Nombre de usuario"
-            binding.tilPassword.hint = "Contraseña"
-            binding.btnAction.text = "Ingresar"
-            binding.tvToggleMode.text = "¿No tienes una cuenta? Regístrate"
+            binding.tvSubtitle.text = getString(R.string.login_subtitle)
+            binding.tilUsername.hint = getString(R.string.hint_username)
+            binding.tilPassword.hint = getString(R.string.hint_password_login)
+            binding.btnAction.text = getString(R.string.login_button)
+            binding.tvToggleMode.text = getString(R.string.toggle_to_register)
 
             // Show biometric option only when strong biometric enrollment exists for last logged user
             val savedUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
@@ -128,26 +128,26 @@ class LoginActivity : AppCompatActivity() {
                 binding.divider.visibility = View.VISIBLE
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.VISIBLE
-                binding.btnBiometric.text = "Ingresar con huella ($savedUser)"
+                binding.btnBiometric.text = getString(R.string.login_biometric_user, savedUser)
                 binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.text_secondary))
             } else if (savedUser.isNotEmpty() && securityManager.isWeakBiometricOnly()) {
                 binding.divider.visibility = View.VISIBLE
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.GONE
-                binding.tvBiometricHint.text = "Este dispositivo solo tiene biometría débil; usa tu contraseña"
+                binding.tvBiometricHint.text = getString(R.string.biometric_weak_only_hint)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.text_primary))
             } else {
                 binding.divider.visibility = View.GONE
                 binding.llBiometric.visibility = View.GONE
             }
         } else {
-            binding.tvWelcome.text = "Crear Cuenta"
-            binding.tvSubtitle.text = "Regístrate de forma sencilla"
-            binding.tilUsername.hint = "Elige un usuario"
-            binding.tilPassword.hint = "Contraseña (mínimo 8 caracteres)"
-            binding.btnAction.text = "Registrar"
-            binding.tvToggleMode.text = "¿Ya tienes una cuenta? Inicia sesión"
+            binding.tvWelcome.text = getString(R.string.register_title)
+            binding.tvSubtitle.text = getString(R.string.register_subtitle)
+            binding.tilUsername.hint = getString(R.string.hint_choose_username)
+            binding.tilPassword.hint = getString(R.string.hint_password_register)
+            binding.btnAction.text = getString(R.string.register_button)
+            binding.tvToggleMode.text = getString(R.string.toggle_to_login)
             binding.divider.visibility = View.GONE
             binding.llBiometric.visibility = View.GONE
         }
@@ -193,23 +193,23 @@ class LoginActivity : AppCompatActivity() {
         var isValid = true
 
         if (username.isEmpty()) {
-            binding.tilUsername.error = "Ingresa tu nombre de usuario"
+            binding.tilUsername.error = getString(R.string.error_username_empty)
             isValid = false
         } else if (username.any { it.isWhitespace() }) {
-            binding.tilUsername.error = "El nombre de usuario no debe tener espacios"
+            binding.tilUsername.error = getString(R.string.error_username_spaces)
             isValid = false
         } else {
             binding.tilUsername.error = null
         }
 
         if (password.isEmpty()) {
-            binding.tilPassword.error = "Ingresa tu contraseña"
+            binding.tilPassword.error = getString(R.string.error_password_empty)
             isValid = false
         } else if (password.any { it.isWhitespace() }) {
-            binding.tilPassword.error = "La contraseña no debe contener espacios"
+            binding.tilPassword.error = getString(R.string.error_password_spaces)
             isValid = false
         } else if (password.length < 8) {
-            binding.tilPassword.error = "La contraseña debe tener al menos 8 caracteres"
+            binding.tilPassword.error = getString(R.string.error_password_min_length)
             isValid = false
         } else {
             binding.tilPassword.error = null
@@ -261,7 +261,7 @@ class LoginActivity : AppCompatActivity() {
                     } else {
                         binding.progressBar.visibility = View.GONE
                         binding.btnAction.isEnabled = true
-                        binding.tilPassword.error = "Usuario o contraseña incorrectos"
+                        binding.tilPassword.error = getString(R.string.error_invalid_credentials)
                     }
                 }
             }
@@ -281,13 +281,13 @@ class LoginActivity : AppCompatActivity() {
 
             when (result) {
                 is StorageOpResult.Success -> {
-                    Toast.makeText(this@LoginActivity, "Registro exitoso. Ahora puedes iniciar sesión.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@LoginActivity, getString(R.string.register_success), Toast.LENGTH_LONG).show()
                     isLoginMode = true
                     updateModeUI()
                     binding.etPassword.text?.clear()
                 }
                 is StorageOpResult.Duplicate -> {
-                    binding.tilUsername.error = "El usuario ya está registrado"
+                    binding.tilUsername.error = getString(R.string.error_username_taken)
                 }
                 is StorageOpResult.Error -> {
                     Toast.makeText(this@LoginActivity, result.message, Toast.LENGTH_LONG).show()
@@ -305,13 +305,13 @@ class LoginActivity : AppCompatActivity() {
 
     private fun promptBiometricEnrollment(username: String) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Activar ingreso biométrico")
-            .setMessage("¿Deseas vincular tu huella o biometría fuerte para ingresar como $username?")
+            .setTitle(getString(R.string.biometric_enroll_title))
+            .setMessage(getString(R.string.biometric_enroll_message, username))
             .setCancelable(false)
-            .setPositiveButton("Activar") { _, _ ->
+            .setPositiveButton(getString(R.string.biometric_enroll_confirm)) { _, _ ->
                 showBiometricEnrollmentPrompt(username)
             }
-            .setNegativeButton("Ahora no") { _, _ ->
+            .setNegativeButton(getString(R.string.biometric_enroll_later)) { _, _ ->
                 navigateToDashboard()
             }
             .show()
@@ -323,7 +323,7 @@ class LoginActivity : AppCompatActivity() {
             is SecurityManager.BiometricCipherResult.Ready -> cipherResult.cipher
             is SecurityManager.BiometricCipherResult.KeyInvalidated,
             is SecurityManager.BiometricCipherResult.Unavailable -> {
-                Toast.makeText(this, "No se pudo inicializar la biometría fuerte", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.biometric_enroll_unavailable), Toast.LENGTH_SHORT).show()
                 navigateToDashboard()
                 return
             }
@@ -338,7 +338,11 @@ class LoginActivity : AppCompatActivity() {
                     super.onAuthenticationSucceeded(result)
                     val authCipher = result.cryptoObject?.cipher
                     if (authCipher != null && securityManager.saveBiometricEnrollment(username, authCipher)) {
-                        Toast.makeText(this@LoginActivity, "Biometría activada para $username", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@LoginActivity,
+                            getString(R.string.biometric_enroll_success, username),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                     navigateToDashboard()
                 }
@@ -352,8 +356,8 @@ class LoginActivity : AppCompatActivity() {
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.security_biometric_title))
-            .setSubtitle("Confirma tu biometría para vincularla a tu cuenta")
-            .setNegativeButtonText("Cancelar")
+            .setSubtitle(getString(R.string.biometric_enroll_prompt_subtitle))
+            .setNegativeButtonText(getString(R.string.btn_cancel))
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build()
 
@@ -363,7 +367,7 @@ class LoginActivity : AppCompatActivity() {
     private fun showBiometricPrompt() {
         val lastUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
         if (lastUser.isEmpty() || !securityManager.hasBiometricEnrollmentFor(lastUser)) {
-            binding.tvBiometricHint.text = "Inicia sesión con contraseña primero"
+            binding.tvBiometricHint.text = getString(R.string.biometric_login_first)
             binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
             return
         }
@@ -373,12 +377,12 @@ class LoginActivity : AppCompatActivity() {
             is SecurityManager.BiometricCipherResult.KeyInvalidated -> {
                 securityManager.clearBiometricEnrollment()
                 binding.btnBiometric.visibility = View.GONE
-                binding.tvBiometricHint.text = "La biometría del dispositivo cambió. Inicia con contraseña para reactivarla."
+                binding.tvBiometricHint.text = getString(R.string.biometric_invalidated)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                 return
             }
             is SecurityManager.BiometricCipherResult.Unavailable -> {
-                binding.tvBiometricHint.text = "Biometría no disponible; usa tu contraseña"
+                binding.tvBiometricHint.text = getString(R.string.biometric_unavailable)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
                 return
             }
@@ -397,7 +401,7 @@ class LoginActivity : AppCompatActivity() {
                     if (decryptedUser.isNullOrEmpty()) {
                         securityManager.clearBiometricEnrollment()
                         binding.btnBiometric.visibility = View.GONE
-                        binding.tvBiometricHint.text = "Credencial biométrica inválida. Usa tu contraseña."
+                        binding.tvBiometricHint.text = getString(R.string.biometric_invalid_credential)
                         binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                         return
                     }
@@ -418,14 +422,14 @@ class LoginActivity : AppCompatActivity() {
                                         SessionManager.KEY_SESSION_USERNAME,
                                         existingUser.username
                                     )
-                                    binding.tvBiometricHint.text = "¡Autenticación exitosa!"
+                                    binding.tvBiometricHint.text = getString(R.string.biometric_success)
                                     binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
-                                    delay(300)
+                                    delay(250)
                                     navigateToDashboard()
                                 } else {
                                     securityManager.clearBiometricEnrollment()
                                     binding.btnBiometric.visibility = View.GONE
-                                    binding.tvBiometricHint.text = "El usuario ya no existe. Inicia sesión o regístrate."
+                                    binding.tvBiometricHint.text = getString(R.string.biometric_user_missing)
                                     binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                                 }
                             }
@@ -440,13 +444,13 @@ class LoginActivity : AppCompatActivity() {
                     ) {
                         return
                     }
-                    binding.tvBiometricHint.text = "Error: $errString"
+                    binding.tvBiometricHint.text = getString(R.string.biometric_error_format, errString)
                     binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                 }
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
-                    binding.tvBiometricHint.text = "Biometría no reconocida. Intenta de nuevo."
+                    binding.tvBiometricHint.text = getString(R.string.biometric_failed)
                     binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
                 }
             }
@@ -455,7 +459,7 @@ class LoginActivity : AppCompatActivity() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.security_biometric_title))
             .setSubtitle(getString(R.string.security_biometric_subtitle))
-            .setNegativeButtonText("Usar Contraseña")
+            .setNegativeButtonText(getString(R.string.biometric_use_password))
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build()
 

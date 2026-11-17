@@ -12,7 +12,7 @@
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/toolbar_background"
-        app:title="Mis Llaves"
+        app:title="@string/nav_my_keys"
         app:titleTextColor="@color/white"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -66,7 +66,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="No tienes llaves registradas"
+                    android:text="@string/empty_keys_title"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold"
@@ -75,7 +75,7 @@
                 <TextView
                     android:layout_width="220dp"
                     android:layout_height="wrap_content"
-                    android:text="Crea una llave para asociar tus datos de forma segura."
+                    android:text="@string/empty_keys_subtitle"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:textAlignment="center"
@@ -94,7 +94,7 @@
                 app:tint="@color/bbre_brand_navy_dark"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                android:contentDescription="Agregar Llave" />
+                android:contentDescription="@string/cd_add_key" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -114,7 +114,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Administrar Perfil"
+                    android:text="@string/settings_profile_title"
                     android:textColor="@color/bbre_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -126,7 +126,7 @@
                     style="@style/Widget.BBreApp.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Nombre de usuario"
+                    android:hint="@string/hint_username"
                     app:startIconDrawable="@drawable/ic_person"
                     app:startIconTint="@color/text_secondary"
                     android:layout_marginBottom="16dp">
@@ -146,7 +146,7 @@
                     style="@style/Widget.BBreApp.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Nueva contraseña (deja vacío para no cambiar)"
+                    android:hint="@string/hint_new_password"
                     app:startIconDrawable="@drawable/ic_lock"
                     app:startIconTint="@color/text_secondary"
                     app:endIconMode="password_toggle"
@@ -170,7 +170,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="56dp"
-                    android:text="Guardar Cambios"
+                    android:text="@string/btn_save_changes"
                     android:layout_marginBottom="24dp" />
 
                 <View
@@ -183,7 +183,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Acciones de la Cuenta"
+                    android:text="@string/settings_account_actions"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:textStyle="bold"
@@ -196,7 +196,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="56dp"
-                    android:text="Información de Llave y Sistema"
+                    android:text="@string/btn_system_info"
                     app:icon="@drawable/ic_info"
                     app:iconGravity="textStart"
                     android:layout_marginBottom="16dp" />
@@ -208,7 +208,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="56dp"
-                    android:text="Cerrar Sesión"
+                    android:text="@string/btn_logout"
                     android:layout_marginBottom="16dp" />
 
                 <!-- Delete Account Button -->
@@ -218,7 +218,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:text="Eliminar Cuenta Permanente"
+                    android:text="@string/btn_delete_account"
                     android:textColor="@color/red_error" />
 
             </LinearLayout>

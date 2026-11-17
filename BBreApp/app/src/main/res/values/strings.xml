@@ -1,73 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BBre - NairuSoft</string>
-    <string name="app_slogan">Pagos inmediatos en Colombia</string>
-    
+
     <!-- Splash Screen -->
     <string name="splash_bbre">BBre</string>
     <string name="splash_nairusoft">NairuSoft</string>
-    <string name="splash_description">Sistema de pagos inmediatos del Banco de la República</string>
-    
-    <!-- Login -->
+    <string name="splash_description">Gestor seguro de llaves BBre - Banco de la República</string>
+    <string name="splash_security_badge">Seguridad Bancaria</string>
+
+    <!-- Login & Registration -->
     <string name="login_title">Bienvenido a BBre</string>
-    <string name="login_subtitle">Ingresa con tu llave</string>
-    <string name="login_phone_hint">Número de celular</string>
-    <string name="login_email_hint">Correo electrónico</string>
-    <string name="login_id_hint">Cédula de ciudadanía</string>
-    <string name="login_pin_hint">PIN de seguridad</string>
-    <string name="login_biometric">Usar huella digital</string>
+    <string name="login_subtitle">Inicia sesión con tu usuario y contraseña</string>
+    <string name="register_title">Crear Cuenta</string>
+    <string name="register_subtitle">Regístrate de forma sencilla</string>
+    <string name="hint_username">Nombre de usuario</string>
+    <string name="hint_choose_username">Elige un usuario</string>
+    <string name="hint_password_login">Contraseña</string>
+    <string name="hint_password_register">Contraseña (mínimo 8 caracteres)</string>
     <string name="login_button">Ingresar</string>
-    <string name="login_forgot_pin">¿Olvidaste tu PIN?</string>
-    
-    <!-- Dashboard -->
-    <string name="dashboard_balance">Saldo disponible</string>
-    <string name="dashboard_transfer">Transferir</string>
-    <string name="dashboard_qr">Escanear QR</string>
-    <string name="dashboard_history">Historial</string>
-    <string name="dashboard_settings">Configuración</string>
-    
-    <!-- Transfer -->
-    <string name="transfer_title">Nueva Transferencia</string>
-    <string name="transfer_amount">Monto (COP)</string>
-    <string name="transfer_recipient">Destinatario</string>
-    <string name="transfer_key_type">Tipo de llave</string>
-    <string name="transfer_button">Enviar dinero</string>
-    <string name="transfer_limit">Límite: $12.110.000 por transacción</string>
-    <string name="transfer_success">¡Transferencia exitosa!</string>
-    
-    <!-- QR Scanner -->
-    <string name="qr_title">Escanear Código QR</string>
-    <string name="qr_instructions">Apunta la cámara al código QR</string>
-    <string name="qr_permission_required">Permiso de cámara requerido</string>
-    
-    <!-- Security -->
+    <string name="register_button">Registrar</string>
+    <string name="toggle_to_register">¿No tienes una cuenta? Regístrate</string>
+    <string name="toggle_to_login">¿Ya tienes una cuenta? Inicia sesión</string>
+    <string name="login_biometric">Usar huella digital</string>
+    <string name="login_biometric_user">Ingresar con huella (%1$s)</string>
+    <string name="error_username_empty">Ingresa tu nombre de usuario</string>
+    <string name="error_username_spaces">El nombre de usuario no debe tener espacios</string>
+    <string name="error_username_taken">El usuario ya está registrado</string>
+    <string name="error_password_empty">Ingresa tu contraseña</string>
+    <string name="error_password_spaces">La contraseña no debe contener espacios</string>
+    <string name="error_password_min_length">La contraseña debe tener al menos 8 caracteres</string>
+    <string name="error_invalid_credentials">Usuario o contraseña incorrectos</string>
+    <string name="register_success">Registro exitoso. Ahora puedes iniciar sesión.</string>
+
+    <!-- Biometric Authentication -->
     <string name="security_biometric_title">Autenticación Biométrica</string>
-    <string name="security_biometric_subtitle">Usa tu huella para acceder</string>
-    <string name="security_pin_required">PIN requerido</string>
-    <string name="security_face_id">Usar reconocimiento facial</string>
-    <string name="security_fingerprint">Usar huella digital</string>
-    
-    <!-- Messages -->
-    <string name="error_network">Error de conexión. Verifica tu internet.</string>
-    <string name="error_invalid_key">Llave inválida</string>
-    <string name="error_insufficient_funds">Fondos insuficientes</string>
-    <string name="error_limit_exceeded">Superaste el límite de transferencia</string>
-    <string name="success_registration">Llave registrada exitosamente</string>
-    
-    <!-- Keys Types -->
-    <string name="key_type_phone">Celular</string>
-    <string name="key_type_email">Correo</string>
-    <string name="key_type_id">Cédula</string>
-    <string name="key_type_random">Código Aleatorio</string>
-    
-    <!-- Menu -->
-    <string name="menu_register_key">Registrar Llave</string>
-    <string name="menu_my_keys">Mis Llaves</string>
-    <string name="menu_logout">Cerrar Sesión</string>
-    <string name="menu_help">Ayuda</string>
-    <string name="menu_about">Acerca de</string>
-    
-    <!-- About -->
-    <string name="about_description">BBre es el nuevo sistema de pagos inmediatos en Colombia, desarrollado por el Banco de la República. Permite enviar y recibir dinero al instante, todos los días y a cualquier hora, sin importar el banco y de forma gratuita.</string>
-    <string name="about_developed_by">Desarrollado por NairuSoft</string>
+    <string name="security_biometric_subtitle">Usa tu huella o rostro fuerte para acceder</string>
+    <string name="biometric_weak_only_hint">Este dispositivo solo tiene biometría débil; usa tu contraseña</string>
+    <string name="biometric_enroll_title">Activar ingreso biométrico</string>
+    <string name="biometric_enroll_message">¿Deseas vincular tu huella o biometría fuerte para ingresar como %1$s?</string>
+    <string name="biometric_enroll_confirm">Activar</string>
+    <string name="biometric_enroll_later">Ahora no</string>
+    <string name="biometric_enroll_prompt_subtitle">Confirma tu biometría para vincularla a tu cuenta</string>
+    <string name="biometric_enroll_unavailable">No se pudo inicializar la biometría fuerte</string>
+    <string name="biometric_enroll_success">Biometría activada para %1$s</string>
+    <string name="biometric_use_password">Usar Contraseña</string>
+    <string name="biometric_login_first">Inicia sesión con contraseña primero</string>
+    <string name="biometric_invalidated">La biometría del dispositivo cambió. Inicia con contraseña para reactivarla.</string>
+    <string name="biometric_unavailable">Biometría no disponible; usa tu contraseña</string>
+    <string name="biometric_invalid_credential">Credencial biométrica inválida. Usa tu contraseña.</string>
+    <string name="biometric_user_missing">El usuario ya no existe. Inicia sesión o regístrate.</string>
+    <string name="biometric_success">¡Autenticación exitosa!</string>
+    <string name="biometric_error_format">Error: %1$s</string>
+    <string name="biometric_failed">Biometría no reconocida. Intenta de nuevo.</string>
+
+    <!-- Dashboard & Keys -->
+    <string name="nav_my_keys">Mis Llaves</string>
+    <string name="nav_settings">Configuración</string>
+    <string name="empty_keys_title">No tienes llaves registradas</string>
+    <string name="empty_keys_subtitle">Crea una llave para asociar tus datos de forma segura.</string>
+    <string name="cd_add_key">Agregar llave</string>
+    <string name="cd_info_key">Ver información de llave</string>
+    <string name="cd_edit_key">Editar llave</string>
+    <string name="cd_delete_key">Eliminar llave</string>
+    <string name="item_bank_placeholder">Banco</string>
+    <string name="item_description_format">Descripción: %1$s</string>
+    <string name="item_key_format">Llave: %1$s</string>
+    <string name="clipboard_label">Llave BBre</string>
+    <string name="clipboard_copied_msg">Llave copiada al portapapeles (se limpiará en 45 s)</string>
+    <string name="session_expired_inactivity">Sesión cerrada por inactividad</string>
+
+    <!-- Key Dialogs -->
+    <string name="dialog_add_key_title">Agregar Nueva Llave</string>
+    <string name="dialog_edit_key_title">Modificar Llave</string>
+    <string name="label_select_bank">Selecciona el Banco</string>
+    <string name="hint_bank">Banco o entidad</string>
+    <string name="option_add_new_bank">+ Agregar nuevo banco…</string>
+    <string name="hint_custom_bank">Escribe el nombre del nuevo banco</string>
+    <string name="label_description">Descripción</string>
+    <string name="hint_description">Escribe una descripción</string>
+    <string name="label_key_value">Valor de la Llave</string>
+    <string name="hint_key_value">Ej. celular, cédula, correo o código</string>
+    <string name="btn_generate_random_code">Generar código aleatorio único</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_save">Guardar</string>
+    <string name="btn_close">Cerrar</string>
+    <string name="btn_copy_key">Copiar Llave</string>
+    <string name="btn_accept">Aceptar</string>
+    <string name="btn_confirm">Confirmar</string>
+    <string name="btn_continue">Continuar</string>
+    <string name="btn_delete">Eliminar</string>
+    <string name="error_select_bank">Selecciona un banco</string>
+    <string name="error_custom_bank_empty">Escribe el nombre del banco</string>
+    <string name="error_description_empty">Ingresa una descripción</string>
+    <string name="error_key_value_empty">Ingresa un valor para la llave</string>
+    <string name="error_duplicate_key">Ya tienes esta llave registrada para este banco</string>
+    <string name="error_key_not_found">No se encontró la llave a modificar</string>
+    <string name="msg_key_added">Llave agregada exitosamente</string>
+    <string name="msg_key_updated">Llave modificada exitosamente</string>
+    <string name="msg_key_deleted">Llave eliminada</string>
+    <string name="dialog_delete_key_title">Eliminar Llave</string>
+    <string name="dialog_delete_key_message">¿Estás seguro de que deseas eliminar esta llave? Esta acción no se puede deshacer.</string>
+    <string name="dialog_key_info_title">Información de Llave</string>
+    <string name="dialog_key_info_body">• Creado por: %1$s\n• Banco: %2$s\n• Descripción: %3$s\n• Valor de Llave: %4$s\n• Fecha de Creación: %5$s\n• Fecha de Modificación: %6$s\n• Versión más reciente: %7$s</string>
+    <string name="value_no_description">Sin descripción</string>
+    <string name="value_unknown">Desconocido</string>
+    <string name="value_no_modifications">Sin modificaciones</string>
+
+    <!-- Settings & Profile -->
+    <string name="settings_profile_title">Administrar Perfil</string>
+    <string name="hint_new_password">Nueva contraseña (deja vacío para no cambiar)</string>
+    <string name="btn_save_changes">Guardar Cambios</string>
+    <string name="settings_account_actions">Acciones de la Cuenta</string>
+    <string name="btn_system_info">Información de Llave y Sistema</string>
+    <string name="btn_logout">Cerrar Sesión</string>
+    <string name="btn_delete_account">Eliminar cuenta permanentemente</string>
+    <string name="error_settings_username_empty">El usuario no puede estar vacío</string>
+    <string name="error_settings_username_spaces">El usuario no debe contener espacios</string>
+    <string name="error_settings_username_taken">El nombre de usuario ya está en uso</string>
+    <string name="error_new_password_min_length">La nueva contraseña debe tener al menos 8 caracteres</string>
+    <string name="error_current_user_missing">No se encontró el usuario actual. Inicia sesión nuevamente.</string>
+    <string name="error_user_update_not_found">No se encontró el usuario para actualizar.</string>
+    <string name="msg_no_changes">No hay cambios para guardar</string>
+    <string name="msg_profile_updated">Perfil actualizado exitosamente</string>
+    <string name="dialog_reauth_title">Confirmar identidad</string>
+    <string name="dialog_reauth_password_change_msg">Ingresa tu contraseña actual para cambiar tu contraseña.</string>
+    <string name="hint_current_password">Contraseña actual</string>
+    <string name="error_current_password_empty">Ingresa tu contraseña actual</string>
+    <string name="error_current_password_wrong">Contraseña actual incorrecta</string>
+    <string name="dialog_delete_account_title">Eliminar Cuenta</string>
+    <string name="dialog_delete_account_message">¿Estás seguro de que deseas eliminar permanentemente tu cuenta \'%1$s\'? Se eliminarán tu perfil y todas tus llaves registradas. Esta acción no se puede deshacer.</string>
+    <string name="dialog_delete_account_reauth_title">Confirmar eliminación</string>
+    <string name="dialog_delete_account_reauth_message">Por seguridad, ingresa tu contraseña actual para eliminar permanentemente tu cuenta y tus llaves.</string>
+    <string name="msg_account_deleted">Cuenta eliminada exitosamente</string>
+    <string name="error_account_not_found">No se encontró la cuenta actual.</string>
+    <string name="dialog_system_info_title">Información de Llave y Sistema</string>
+    <string name="dialog_system_info_base">• Aplicación: BBre - NairuSoft\n• Desarrollado por: NairuSoft\n• Usuario activo: %1$s\n• Total de llaves: %2$d\n• Versión más reciente: %3$s</string>
+    <string name="dialog_system_info_latest_key">\n\nÚltima llave registrada:\n• Nombre/Banco: %1$s\n• Creado por: %2$s\n• Fecha de creación: %3$s\n• Fecha de modificación: %4$s\n• Versión de llave: %5$s</string>
+    <string name="dialog_system_info_no_keys">\n\n• Llaves registradas: 0</string>
 </resources>

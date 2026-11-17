@@ -3,6 +3,7 @@ package com.nairusoft.bbre.ui
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ItemKeyBinding
 import com.nairusoft.bbre.security.UserKey
 
@@ -23,9 +24,10 @@ class KeysAdapter(
 
     override fun onBindViewHolder(holder: KeyViewHolder, position: Int) {
         val key = keysList[position]
+        val context = holder.itemView.context
         holder.binding.tvKeyType.text = key.type
-        holder.binding.tvKeyDescription.text = "Descripción: ${key.description}"
-        holder.binding.tvKeyValue.text = "Llave: ${key.value}"
+        holder.binding.tvKeyDescription.text = context.getString(R.string.item_description_format, key.description)
+        holder.binding.tvKeyValue.text = context.getString(R.string.item_key_format, key.value)
 
         // Make the whole row click trigger row click action (which copies the key)
         holder.itemView.setOnClickListener { onRowClick(key) }

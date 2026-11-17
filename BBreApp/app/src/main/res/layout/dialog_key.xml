@@ -16,7 +16,7 @@
             android:id="@+id/tvDialogTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Agregar Nueva Llave"
+            android:text="@string/dialog_add_key_title"
             android:textColor="@color/bbre_primary"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -26,7 +26,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Selecciona el Banco"
+            android:text="@string/label_select_bank"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -38,7 +38,7 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Banco o entidad"
+            android:hint="@string/hint_bank"
             app:boxStrokeColor="@color/bbre_primary"
             app:hintTextColor="@color/bbre_primary"
             app:boxBackgroundColor="@color/surface"
@@ -63,7 +63,7 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Escribe el nombre del nuevo banco"
+            android:hint="@string/hint_custom_bank"
             android:layout_marginBottom="16dp"
             android:visibility="gone">
 
@@ -80,7 +80,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Descripción"
+            android:text="@string/label_description"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -91,7 +91,7 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Escribe una descripción"
+            android:hint="@string/hint_description"
             android:layout_marginBottom="16dp">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -107,7 +107,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Valor de la Llave"
+            android:text="@string/label_key_value"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -118,7 +118,7 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Ej. celular, cédula, correo o código"
+            android:hint="@string/hint_key_value"
             android:layout_marginBottom="8dp">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -136,7 +136,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
-            android:text="Generar código aleatorio único"
+            android:text="@string/btn_generate_random_code"
             android:textSize="13sp"
             app:icon="@drawable/ic_autorenew"
             app:iconGravity="textStart"
@@ -154,7 +154,7 @@
                 style="@style/Widget.BBreApp.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Cancelar"
+                android:text="@string/btn_cancel"
                 android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton
@@ -162,7 +162,7 @@
                 style="@style/Widget.BBreApp.Button.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Guardar" />
+                android:text="@string/btn_save" />
 
         </LinearLayout>
 
