@@ -5,12 +5,12 @@ import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
 import com.nairusoft.bbre.security.SecurityManager
@@ -70,12 +70,12 @@ class LoginActivity : AppCompatActivity() {
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.VISIBLE
                 binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
-                binding.tvBiometricHint.setTextColor(getColor(R.color.gray))
+                binding.tvBiometricHint.setTextColor(getColor(R.color.text_secondary))
             } else if (savedUser.isNotEmpty() && securityManager.isWeakBiometricOnly()) {
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.GONE
                 binding.tvBiometricHint.text = "Este dispositivo solo tiene biometría débil; usa tu contraseña"
-                binding.tvBiometricHint.setTextColor(getColor(R.color.gray_dark))
+                binding.tvBiometricHint.setTextColor(getColor(R.color.text_primary))
             } else {
                 binding.llBiometric.visibility = View.GONE
             }
@@ -234,7 +234,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun promptBiometricEnrollment(username: String) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Activar ingreso biométrico")
             .setMessage("¿Deseas vincular tu huella o biometría fuerte para ingresar como $username?")
             .setCancelable(false)

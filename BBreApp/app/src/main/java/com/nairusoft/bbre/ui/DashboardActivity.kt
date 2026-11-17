@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.R
@@ -209,8 +210,8 @@ class DashboardActivity : AppCompatActivity() {
             binding.tvTabKeys.setTextColor(getColor(R.color.bbre_primary))
             binding.tvTabKeys.setTypeface(null, android.graphics.Typeface.BOLD)
 
-            binding.ivTabSettings.setColorFilter(getColor(R.color.gray))
-            binding.tvTabSettings.setTextColor(getColor(R.color.gray))
+            binding.ivTabSettings.setColorFilter(getColor(R.color.nav_inactive))
+            binding.tvTabSettings.setTextColor(getColor(R.color.nav_inactive))
             binding.tvTabSettings.setTypeface(null, android.graphics.Typeface.NORMAL)
             
             loadKeysList()
@@ -219,8 +220,8 @@ class DashboardActivity : AppCompatActivity() {
             binding.layoutSettings.visibility = View.VISIBLE
             supportActionBar?.title = "Configuración"
 
-            binding.ivTabKeys.setColorFilter(getColor(R.color.gray))
-            binding.tvTabKeys.setTextColor(getColor(R.color.gray))
+            binding.ivTabKeys.setColorFilter(getColor(R.color.nav_inactive))
+            binding.tvTabKeys.setTextColor(getColor(R.color.nav_inactive))
             binding.tvTabKeys.setTypeface(null, android.graphics.Typeface.NORMAL)
 
             binding.ivTabSettings.setColorFilter(getColor(R.color.bbre_primary))
@@ -320,7 +321,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showKeyInfoDialog(key: UserKey) {
         activeDialog?.dismiss()
-        activeDialog = AlertDialog.Builder(this)
+        activeDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Información de Llave")
             .setMessage(
                 "• Creado por: ${if(key.createdBy.isEmpty()) currentUser else key.createdBy}\n" +
@@ -339,7 +340,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun showKeyDialog(existingKey: UserKey?) {
         activeDialog?.dismiss()
         val dialogBinding = DialogKeyBinding.inflate(LayoutInflater.from(this))
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogBinding.root)
             .create()
         activeDialog = dialog
@@ -490,7 +491,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showDeleteKeyConfirmation(userKey: UserKey) {
         activeDialog?.dismiss()
-        activeDialog = AlertDialog.Builder(this)
+        activeDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Eliminar Llave")
             .setMessage("¿Estás seguro de que deseas eliminar esta llave? Esta acción no se puede deshacer.")
             .setPositiveButton("Eliminar") { _, _ ->
@@ -654,7 +655,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showSystemInfoDialog() {
         activeDialog?.dismiss()
-        activeDialog = AlertDialog.Builder(this)
+        activeDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Información del Sistema BBre")
             .setMessage(
                 "• Nombre de la App: BBre - NairuSoft\n" +
@@ -700,7 +701,7 @@ class DashboardActivity : AppCompatActivity() {
         tilCurrentPassword.addView(etCurrentPassword)
         container.addView(tilCurrentPassword)
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setView(container)
             .setPositiveButton("Confirmar", null)
@@ -746,7 +747,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showDeleteAccountConfirmation() {
         activeDialog?.dismiss()
-        activeDialog = AlertDialog.Builder(this)
+        activeDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Eliminar Cuenta")
             .setMessage("¿Estás seguro de que deseas eliminar permanentemente tu cuenta '$currentUser'? Se eliminarán tu perfil y todas tus llaves registradas. Esta acción no se puede deshacer.")
             .setPositiveButton("Continuar") { _, _ ->

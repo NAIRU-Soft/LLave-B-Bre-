@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="20dp"
-    android:background="@color/background_primary">
+    android:background="?attr/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -37,7 +37,7 @@
             android:id="@+id/spinnerKeyType"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:background="@drawable/security_badge_background"
+            android:background="@drawable/spinner_background"
             android:layout_marginBottom="12dp"
             android:padding="8dp" />
 
@@ -55,7 +55,7 @@
                 android:id="@+id/etCustomBank"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="textCapWords" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -82,7 +82,7 @@
                 android:id="@+id/etDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="textCapSentences" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -109,7 +109,7 @@
                 android:id="@+id/etKeyValue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>

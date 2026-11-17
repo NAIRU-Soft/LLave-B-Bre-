@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BBre Brand (dark-surface legible) -->
+    <color name="bbre_primary">#60A5FA</color>
+    <color name="bbre_primary_dark">#0B1324</color>
+    <color name="bbre_accent">#FFD700</color>
+
+    <!-- NairuSoft Brand -->
+    <color name="nairusoft_primary">#64B5F6</color>
+    <color name="nairusoft_secondary">#90CAF9</color>
+
+    <!-- Semantic Dark Palette -->
+    <color name="background_primary">#0F172A</color>
+    <color name="surface">#1E293B</color>
+    <color name="surface_variant">#273549</color>
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#CBD5E1</color>
+    <color name="outline_subtle">#475569</color>
+    <color name="toolbar_background">#1E293B</color>
+    <color name="bottom_nav_background">#1E293B</color>
+    <color name="nav_inactive">#94A3B8</color>
+    <color name="button_primary_bg">#2563EB</color>
+    <color name="button_primary_text">#FFFFFF</color>
+    <color name="key_icon_bg">#273549</color>
+
+    <!-- Status -->
+    <color name="gray_light">#334155</color>
+    <color name="gray">#94A3B8</color>
+    <color name="gray_dark">#CBD5E1</color>
+    <color name="green_success">#66BB6A</color>
+    <color name="red_error">#F87171</color>
+    <color name="orange_warning">#FBBF24</color>
+</resources>
