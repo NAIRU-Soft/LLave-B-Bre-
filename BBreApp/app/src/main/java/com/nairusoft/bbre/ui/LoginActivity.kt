@@ -4,11 +4,17 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nairusoft.bbre.R
@@ -34,6 +40,7 @@ class LoginActivity : AppCompatActivity() {
     private var isLoginMode = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
@@ -42,6 +49,8 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        applyWindowInsets()
+
         securityManager = SecurityManager.getInstance(this)
         storageManager = StorageManager.getInstance(this)
 
@@ -49,34 +58,71 @@ class LoginActivity : AppCompatActivity() {
         sessionManager.clearSession()
         securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
 
+        setupInputListeners()
         updateModeUI()
         setupToggleMode()
         setupBiometricButton()
         setupActionButton()
     }
 
+    private fun applyWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollRoot) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
+            )
+            view.updatePadding(
+                left = insets.left,
+                top = insets.top,
+                right = insets.right,
+                bottom = insets.bottom
+            )
+            windowInsets
+        }
+    }
+
+    private fun setupInputListeners() {
+        binding.etUsername.doAfterTextChanged {
+            binding.tilUsername.error = null
+        }
+        binding.etPassword.doAfterTextChanged {
+            binding.tilPassword.error = null
+        }
+        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                submitAuthForm()
+                true
+            } else {
+                false
+            }
+        }
+    }
+
     private fun updateModeUI() {
         if (isLoginMode) {
             binding.tvWelcome.text = getString(R.string.login_title)
-            binding.tvSubtitle.text = getString(R.string.login_subtitle)
+            binding.tvSubtitle.text = "Inicia sesión con tu usuario y contraseña"
             binding.tilUsername.hint = "Nombre de usuario"
             binding.tilPassword.hint = "Contraseña"
             binding.btnAction.text = "Ingresar"
             binding.tvToggleMode.text = "¿No tienes una cuenta? Regístrate"
-            
+
             // Show biometric option only when strong biometric enrollment exists for last logged user
             val savedUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
             if (savedUser.isNotEmpty() && securityManager.hasBiometricEnrollmentFor(savedUser)) {
+                binding.divider.visibility = View.VISIBLE
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.VISIBLE
+                binding.btnBiometric.text = "Ingresar con huella ($savedUser)"
                 binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.text_secondary))
             } else if (savedUser.isNotEmpty() && securityManager.isWeakBiometricOnly()) {
+                binding.divider.visibility = View.VISIBLE
                 binding.llBiometric.visibility = View.VISIBLE
                 binding.btnBiometric.visibility = View.GONE
                 binding.tvBiometricHint.text = "Este dispositivo solo tiene biometría débil; usa tu contraseña"
                 binding.tvBiometricHint.setTextColor(getColor(R.color.text_primary))
             } else {
+                binding.divider.visibility = View.GONE
                 binding.llBiometric.visibility = View.GONE
             }
         } else {
@@ -86,9 +132,10 @@ class LoginActivity : AppCompatActivity() {
             binding.tilPassword.hint = "Contraseña (mínimo 8 caracteres)"
             binding.btnAction.text = "Registrar"
             binding.tvToggleMode.text = "¿Ya tienes una cuenta? Inicia sesión"
+            binding.divider.visibility = View.GONE
             binding.llBiometric.visibility = View.GONE
         }
-        
+
         binding.tilUsername.error = null
         binding.tilPassword.error = null
     }
@@ -96,6 +143,7 @@ class LoginActivity : AppCompatActivity() {
     private fun setupToggleMode() {
         binding.tvToggleMode.setOnClickListener {
             isLoginMode = !isLoginMode
+            binding.etPassword.text?.clear()
             updateModeUI()
         }
     }
@@ -108,31 +156,41 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupActionButton() {
         binding.btnAction.setOnClickListener {
-            val username = binding.etUsername.text.toString().trim()
-            val password = binding.etPassword.text.toString().trim()
-            
-            if (validateInput(username, password)) {
-                if (isLoginMode) {
-                    performLogin(username, password)
-                } else {
-                    performRegister(username, password)
-                }
+            submitAuthForm()
+        }
+    }
+
+    private fun submitAuthForm() {
+        val username = binding.etUsername.text?.toString()?.trim() ?: ""
+        val password = binding.etPassword.text?.toString() ?: ""
+
+        if (validateInput(username, password)) {
+            if (isLoginMode) {
+                performLogin(username, password)
+            } else {
+                performRegister(username, password)
             }
         }
     }
 
     private fun validateInput(username: String, password: String): Boolean {
         var isValid = true
-        
+
         if (username.isEmpty()) {
             binding.tilUsername.error = "Ingresa tu nombre de usuario"
+            isValid = false
+        } else if (username.any { it.isWhitespace() }) {
+            binding.tilUsername.error = "El nombre de usuario no debe tener espacios"
             isValid = false
         } else {
             binding.tilUsername.error = null
         }
-        
+
         if (password.isEmpty()) {
             binding.tilPassword.error = "Ingresa tu contraseña"
+            isValid = false
+        } else if (password.any { it.isWhitespace() }) {
+            binding.tilPassword.error = "La contraseña no debe contener espacios"
             isValid = false
         } else if (password.length < 8) {
             binding.tilPassword.error = "La contraseña debe tener al menos 8 caracteres"
@@ -140,17 +198,15 @@ class LoginActivity : AppCompatActivity() {
         } else {
             binding.tilPassword.error = null
         }
-        
+
         return isValid
     }
 
     private fun performLogin(username: String, password: String) {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnAction.isEnabled = false
-        
-        lifecycleScope.launch {
-            delay(1000) // Simulate network/crypto operation delay
 
+        lifecycleScope.launch {
             when (val usersResult = storageManager.getUsersResult()) {
                 is StorageLoadResult.Error -> {
                     binding.progressBar.visibility = View.GONE
@@ -199,10 +255,8 @@ class LoginActivity : AppCompatActivity() {
     private fun performRegister(username: String, password: String) {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnAction.isEnabled = false
-        
+
         lifecycleScope.launch {
-            delay(1000)
-            
             val newUser = securityManager.createUserCredentials(username, password)
             val result = storageManager.addUser(newUser)
 
