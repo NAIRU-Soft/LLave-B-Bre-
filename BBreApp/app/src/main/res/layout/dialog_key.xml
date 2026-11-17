@@ -119,7 +119,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Ej. celular, cédula, correo o código"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="8dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etKeyValue"
@@ -129,6 +129,18 @@
                 android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGenerateKey"
+            style="@style/Widget.BBreApp.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Generar código aleatorio único"
+            android:textSize="13sp"
+            app:icon="@drawable/ic_autorenew"
+            app:iconGravity="textStart"
+            android:layout_marginBottom="20dp" />
 
         <!-- Buttons -->
         <LinearLayout

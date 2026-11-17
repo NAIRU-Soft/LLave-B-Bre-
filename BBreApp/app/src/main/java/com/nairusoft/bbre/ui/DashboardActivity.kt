@@ -403,6 +403,17 @@ class DashboardActivity : AppCompatActivity() {
             dialogBinding.etKeyValue.setText(existingKey.value)
         }
 
+        dialogBinding.btnGenerateKey.setOnClickListener {
+            sessionManager.recordActivity()
+            scheduleRemainingTimeout()
+            val generatedCode = KeyUtils.generateUniqueAlphanumericCode(
+                currentUserKeys.map { it.value }
+            )
+            dialogBinding.etKeyValue.setText(generatedCode)
+            dialogBinding.etKeyValue.setSelection(generatedCode.length)
+            dialogBinding.tilKeyValue.error = null
+        }
+
         dialogBinding.btnCancel.setOnClickListener {
             dialog.dismiss()
         }
