@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ItemKeyBinding
-import com.nairusoft.bbre.security.UserKey
+import com.nairusoft.bbre.model.UserKey
 
 /**
  * RecyclerView adapter backed by [ListAdapter] and [DiffUtil] for rendering [UserKey] rows.

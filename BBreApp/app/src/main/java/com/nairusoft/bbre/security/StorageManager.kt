@@ -1,11 +1,14 @@
 package com.nairusoft.bbre.security
 
 import android.content.Context
+import com.nairusoft.bbre.model.StorageLoadResult
+import com.nairusoft.bbre.model.StorageOpResult
+import com.nairusoft.bbre.model.User
+import com.nairusoft.bbre.model.UserKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -16,40 +19,6 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
-
-@Serializable
-data class User(
-    val username: String,
-    val passwordHash: String,
-    val salt: String = "",
-    val kdfAlgorithm: String = "",
-    val kdfIterations: Int = 0
-)
-
-@Serializable
-data class UserKey(
-    val id: String,
-    val type: String,
-    val value: String,
-    val username: String,
-    val createdBy: String = "",
-    val creationDate: String = "",
-    val modificationDate: String = "",
-    val version: String = "0.0.1",
-    val description: String = ""
-)
-
-sealed class StorageLoadResult<out T> {
-    data class Success<T>(val data: T) : StorageLoadResult<T>()
-    data class Error(val cause: Throwable, val message: String) : StorageLoadResult<Nothing>()
-}
-
-sealed class StorageOpResult {
-    object Success : StorageOpResult()
-    object Duplicate : StorageOpResult()
-    object NotFound : StorageOpResult()
-    data class Error(val cause: Throwable? = null, val message: String) : StorageOpResult()
-}
 
 class StorageManager(
     private val filesDir: File,

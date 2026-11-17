@@ -8,6 +8,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -16,30 +17,28 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityLoginBinding
+import com.nairusoft.bbre.model.BiometricBannerMode
+import com.nairusoft.bbre.model.LoginEvent
+import com.nairusoft.bbre.model.LoginUiState
 import com.nairusoft.bbre.security.AuthValidator
 import com.nairusoft.bbre.security.SecurityManager
-import com.nairusoft.bbre.security.SessionManager
-import com.nairusoft.bbre.security.StorageLoadResult
-import com.nairusoft.bbre.security.StorageManager
-import com.nairusoft.bbre.security.StorageOpResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Login Activity - Secure authentication with biometric support and simple credentials
+ * Login Activity - Renders auth UI and hardware BiometricPrompt delegating state and storage to [LoginViewModel].
  */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var securityManager: SecurityManager
-    private lateinit var storageManager: StorageManager
-    private val sessionManager: SessionManager = SessionManager.getInstance()
-    
-    private var isLoginMode = true
+    private val viewModel: LoginViewModel by viewModels { LoginViewModel.factory(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -52,20 +51,20 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         applyWindowInsets()
-
         securityManager = SecurityManager.getInstance(this)
-        storageManager = StorageManager.getInstance(this)
 
-        // Ensure no stale session remains when entering LoginActivity
-        sessionManager.clearSession()
-        securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
+        if (savedInstanceState == null) {
+            viewModel.initializeScreen()
+        } else {
+            viewModel.refreshBiometricStatus()
+        }
 
         setupInputListeners()
         setupBackNavigation()
-        updateModeUI()
         setupToggleMode()
         setupBiometricButton()
         setupActionButton()
+        observeViewModel()
     }
 
     private fun applyWindowInsets() {
@@ -86,10 +85,9 @@ class LoginActivity : AppCompatActivity() {
     private fun setupBackNavigation() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (!isLoginMode) {
-                    isLoginMode = true
+                if (!viewModel.uiState.value.isLoginMode) {
                     binding.etPassword.text?.clear()
-                    updateModeUI()
+                    viewModel.setMode(true)
                 } else {
                     finish()
                 }
@@ -99,10 +97,10 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupInputListeners() {
         binding.etUsername.doAfterTextChanged {
-            binding.tilUsername.error = null
+            viewModel.onUsernameChanged()
         }
         binding.etPassword.doAfterTextChanged {
-            binding.tilPassword.error = null
+            viewModel.onPasswordChanged()
         }
         binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
@@ -114,8 +112,21 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateModeUI() {
-        if (isLoginMode) {
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.uiState.collect { renderState(it) }
+                }
+                launch {
+                    viewModel.events.collect { handleEvent(it) }
+                }
+            }
+        }
+    }
+
+    private fun renderState(state: LoginUiState) {
+        if (state.isLoginMode) {
             binding.tvWelcome.text = getString(R.string.login_title)
             binding.tvSubtitle.text = getString(R.string.login_subtitle)
             binding.tilUsername.hint = getString(R.string.hint_username)
@@ -123,24 +134,29 @@ class LoginActivity : AppCompatActivity() {
             binding.btnAction.text = getString(R.string.login_button)
             binding.tvToggleMode.text = getString(R.string.toggle_to_register)
 
-            // Show biometric option only when strong biometric enrollment exists for last logged user
-            val savedUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
-            if (savedUser.isNotEmpty() && securityManager.hasBiometricEnrollmentFor(savedUser)) {
-                binding.divider.visibility = View.VISIBLE
-                binding.llBiometric.visibility = View.VISIBLE
-                binding.btnBiometric.visibility = View.VISIBLE
-                binding.btnBiometric.text = getString(R.string.login_biometric_user, savedUser)
-                binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
-                binding.tvBiometricHint.setTextColor(getColor(R.color.text_secondary))
-            } else if (savedUser.isNotEmpty() && securityManager.isWeakBiometricOnly()) {
-                binding.divider.visibility = View.VISIBLE
-                binding.llBiometric.visibility = View.VISIBLE
-                binding.btnBiometric.visibility = View.GONE
-                binding.tvBiometricHint.text = getString(R.string.biometric_weak_only_hint)
-                binding.tvBiometricHint.setTextColor(getColor(R.color.text_primary))
-            } else {
-                binding.divider.visibility = View.GONE
-                binding.llBiometric.visibility = View.GONE
+            when (state.biometricStatus.mode) {
+                BiometricBannerMode.STRONG_AVAILABLE -> {
+                    binding.divider.visibility = View.VISIBLE
+                    binding.llBiometric.visibility = View.VISIBLE
+                    binding.btnBiometric.visibility = View.VISIBLE
+                    binding.btnBiometric.text = getString(
+                        R.string.login_biometric_user,
+                        state.biometricStatus.savedUsername
+                    )
+                    binding.tvBiometricHint.text = getString(R.string.security_biometric_subtitle)
+                    binding.tvBiometricHint.setTextColor(getColor(R.color.text_secondary))
+                }
+                BiometricBannerMode.WEAK_ONLY -> {
+                    binding.divider.visibility = View.VISIBLE
+                    binding.llBiometric.visibility = View.VISIBLE
+                    binding.btnBiometric.visibility = View.GONE
+                    binding.tvBiometricHint.text = getString(R.string.biometric_weak_only_hint)
+                    binding.tvBiometricHint.setTextColor(getColor(R.color.text_primary))
+                }
+                BiometricBannerMode.HIDDEN -> {
+                    binding.divider.visibility = View.GONE
+                    binding.llBiometric.visibility = View.GONE
+                }
             }
         } else {
             binding.tvWelcome.text = getString(R.string.register_title)
@@ -153,15 +169,60 @@ class LoginActivity : AppCompatActivity() {
             binding.llBiometric.visibility = View.GONE
         }
 
-        binding.tilUsername.error = null
-        binding.tilPassword.error = null
+        binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+        binding.btnAction.isEnabled = !state.isLoading
+
+        binding.tilUsername.error = when {
+            state.isUsernameTaken -> getString(R.string.error_username_taken)
+            state.usernameError == AuthValidator.UsernameError.EMPTY -> getString(R.string.error_username_empty)
+            state.usernameError == AuthValidator.UsernameError.CONTAINS_WHITESPACE -> getString(R.string.error_username_spaces)
+            else -> null
+        }
+
+        binding.tilPassword.error = when {
+            state.isInvalidCredentials -> getString(R.string.error_invalid_credentials)
+            state.passwordError == AuthValidator.PasswordError.EMPTY -> getString(R.string.error_password_empty)
+            state.passwordError == AuthValidator.PasswordError.CONTAINS_WHITESPACE -> getString(R.string.error_password_spaces)
+            state.passwordError == AuthValidator.PasswordError.TOO_SHORT -> getString(R.string.error_password_min_length)
+            else -> null
+        }
+    }
+
+    private fun handleEvent(event: LoginEvent) {
+        when (event) {
+            is LoginEvent.NavigateToDashboard -> navigateToDashboard()
+            is LoginEvent.PromptBiometricEnrollment -> promptBiometricEnrollment(event.username)
+            is LoginEvent.RegistrationSucceeded -> {
+                binding.etPassword.text?.clear()
+                Toast.makeText(this, getString(R.string.register_success), Toast.LENGTH_LONG).show()
+            }
+            is LoginEvent.ShowMessage -> {
+                Toast.makeText(this, event.message, Toast.LENGTH_LONG).show()
+            }
+            is LoginEvent.BiometricLoginSucceeded -> {
+                binding.tvBiometricHint.text = getString(R.string.biometric_success)
+                binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
+                lifecycleScope.launch {
+                    delay(200)
+                    navigateToDashboard()
+                }
+            }
+            is LoginEvent.BiometricUserMissing -> {
+                binding.btnBiometric.visibility = View.GONE
+                binding.tvBiometricHint.text = getString(R.string.biometric_user_missing)
+                binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+            }
+            is LoginEvent.BiometricLoadError -> {
+                binding.tvBiometricHint.text = event.message
+                binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
+            }
+        }
     }
 
     private fun setupToggleMode() {
         binding.tvToggleMode.setOnClickListener {
-            isLoginMode = !isLoginMode
             binding.etPassword.text?.clear()
-            updateModeUI()
+            viewModel.toggleMode()
         }
     }
 
@@ -178,129 +239,9 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun submitAuthForm() {
-        val username = binding.etUsername.text?.toString()?.trim() ?: ""
+        val rawUsername = binding.etUsername.text?.toString() ?: ""
         val password = binding.etPassword.text?.toString() ?: ""
-
-        if (validateInput(username, password)) {
-            if (isLoginMode) {
-                performLogin(username, password)
-            } else {
-                performRegister(username, password)
-            }
-        }
-    }
-
-    private fun validateInput(username: String, password: String): Boolean {
-        var isValid = true
-
-        when (AuthValidator.validateUsername(username)) {
-            AuthValidator.UsernameError.EMPTY -> {
-                binding.tilUsername.error = getString(R.string.error_username_empty)
-                isValid = false
-            }
-            AuthValidator.UsernameError.CONTAINS_WHITESPACE -> {
-                binding.tilUsername.error = getString(R.string.error_username_spaces)
-                isValid = false
-            }
-            null -> binding.tilUsername.error = null
-        }
-
-        when (AuthValidator.validatePassword(password)) {
-            AuthValidator.PasswordError.EMPTY -> {
-                binding.tilPassword.error = getString(R.string.error_password_empty)
-                isValid = false
-            }
-            AuthValidator.PasswordError.CONTAINS_WHITESPACE -> {
-                binding.tilPassword.error = getString(R.string.error_password_spaces)
-                isValid = false
-            }
-            AuthValidator.PasswordError.TOO_SHORT -> {
-                binding.tilPassword.error = getString(R.string.error_password_min_length)
-                isValid = false
-            }
-            null -> binding.tilPassword.error = null
-        }
-
-        return isValid
-    }
-
-    private fun performLogin(username: String, password: String) {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.btnAction.isEnabled = false
-
-        lifecycleScope.launch {
-            when (val usersResult = storageManager.getUsersResult()) {
-                is StorageLoadResult.Error -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.btnAction.isEnabled = true
-                    Toast.makeText(this@LoginActivity, usersResult.message, Toast.LENGTH_LONG).show()
-                }
-                is StorageLoadResult.Success -> {
-                    val foundUser = usersResult.data.find { it.username.equals(username, ignoreCase = true) }
-
-                    if (foundUser != null && securityManager.verifyUserPassword(foundUser, password)) {
-                        // Migrate legacy SHA-256 user to salted PBKDF2 on first successful login
-                        if (securityManager.needsPasswordMigration(foundUser)) {
-                            val migratedUser = securityManager.createUserCredentials(foundUser.username, password)
-                            storageManager.updateUser(foundUser.username, migratedUser)
-                        }
-
-                        // Successful password login
-                        sessionManager.startSession(foundUser.username)
-                        securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, foundUser.username)
-                        securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, foundUser.username)
-
-                        // Clear stale biometric binding if a different account logged in
-                        if (!securityManager.hasBiometricEnrollmentFor(foundUser.username)) {
-                            securityManager.clearBiometricEnrollment()
-                        }
-
-                        if (securityManager.isBiometricAvailable() &&
-                            !securityManager.hasBiometricEnrollmentFor(foundUser.username)
-                        ) {
-                            binding.progressBar.visibility = View.GONE
-                            binding.btnAction.isEnabled = true
-                            promptBiometricEnrollment(foundUser.username)
-                        } else {
-                            navigateToDashboard()
-                        }
-                    } else {
-                        binding.progressBar.visibility = View.GONE
-                        binding.btnAction.isEnabled = true
-                        binding.tilPassword.error = getString(R.string.error_invalid_credentials)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun performRegister(username: String, password: String) {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.btnAction.isEnabled = false
-
-        lifecycleScope.launch {
-            val newUser = securityManager.createUserCredentials(username, password)
-            val result = storageManager.addUser(newUser)
-
-            binding.progressBar.visibility = View.GONE
-            binding.btnAction.isEnabled = true
-
-            when (result) {
-                is StorageOpResult.Success -> {
-                    Toast.makeText(this@LoginActivity, getString(R.string.register_success), Toast.LENGTH_LONG).show()
-                    isLoginMode = true
-                    updateModeUI()
-                    binding.etPassword.text?.clear()
-                }
-                is StorageOpResult.Duplicate -> {
-                    binding.tilUsername.error = getString(R.string.error_username_taken)
-                }
-                is StorageOpResult.Error -> {
-                    Toast.makeText(this@LoginActivity, result.message, Toast.LENGTH_LONG).show()
-                }
-                is StorageOpResult.NotFound -> Unit
-            }
-        }
+        viewModel.submitCredentials(rawUsername, password)
     }
 
     private fun navigateToDashboard() {
@@ -371,8 +312,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showBiometricPrompt() {
-        val lastUser = securityManager.getSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
-        if (lastUser.isEmpty() || !securityManager.hasBiometricEnrollmentFor(lastUser)) {
+        val savedUser = viewModel.uiState.value.biometricStatus.savedUsername
+        if (savedUser.isEmpty() || !securityManager.hasBiometricEnrollmentFor(savedUser)) {
             binding.tvBiometricHint.text = getString(R.string.biometric_login_first)
             binding.tvBiometricHint.setTextColor(getColor(R.color.orange_warning))
             return
@@ -382,6 +323,7 @@ class LoginActivity : AppCompatActivity() {
             is SecurityManager.BiometricCipherResult.Ready -> cipherResult.cipher
             is SecurityManager.BiometricCipherResult.KeyInvalidated -> {
                 securityManager.clearBiometricEnrollment()
+                viewModel.refreshBiometricStatus()
                 binding.btnBiometric.visibility = View.GONE
                 binding.tvBiometricHint.text = getString(R.string.biometric_invalidated)
                 binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
@@ -406,41 +348,14 @@ class LoginActivity : AppCompatActivity() {
                     val decryptedUser = authCipher?.let { securityManager.verifyBiometricDecryption(it) }
                     if (decryptedUser.isNullOrEmpty()) {
                         securityManager.clearBiometricEnrollment()
+                        viewModel.refreshBiometricStatus()
                         binding.btnBiometric.visibility = View.GONE
                         binding.tvBiometricHint.text = getString(R.string.biometric_invalid_credential)
                         binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
                         return
                     }
 
-                    lifecycleScope.launch {
-                        when (val usersResult = storageManager.getUsersResult()) {
-                            is StorageLoadResult.Error -> {
-                                binding.tvBiometricHint.text = usersResult.message
-                                binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
-                            }
-                            is StorageLoadResult.Success -> {
-                                val existingUser = usersResult.data.find {
-                                    it.username.equals(decryptedUser, ignoreCase = true)
-                                }
-                                if (existingUser != null) {
-                                    sessionManager.startSession(existingUser.username)
-                                    securityManager.storeSecureData(
-                                        SessionManager.KEY_SESSION_USERNAME,
-                                        existingUser.username
-                                    )
-                                    binding.tvBiometricHint.text = getString(R.string.biometric_success)
-                                    binding.tvBiometricHint.setTextColor(getColor(R.color.green_success))
-                                    delay(250)
-                                    navigateToDashboard()
-                                } else {
-                                    securityManager.clearBiometricEnrollment()
-                                    binding.btnBiometric.visibility = View.GONE
-                                    binding.tvBiometricHint.text = getString(R.string.biometric_user_missing)
-                                    binding.tvBiometricHint.setTextColor(getColor(R.color.red_error))
-                                }
-                            }
-                        }
-                    }
+                    viewModel.completeBiometricLogin(decryptedUser)
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {

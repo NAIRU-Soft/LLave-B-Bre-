@@ -3,11 +3,11 @@ package com.nairusoft.bbre
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.nairusoft.bbre.model.StorageLoadResult
+import com.nairusoft.bbre.model.StorageOpResult
+import com.nairusoft.bbre.model.UserKey
 import com.nairusoft.bbre.security.SecurityManager
-import com.nairusoft.bbre.security.StorageLoadResult
 import com.nairusoft.bbre.security.StorageManager
-import com.nairusoft.bbre.security.StorageOpResult
-import com.nairusoft.bbre.security.UserKey
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

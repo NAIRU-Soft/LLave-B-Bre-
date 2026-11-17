@@ -1,5 +1,6 @@
 package com.nairusoft.bbre.security
 
+import com.nairusoft.bbre.model.UserKey
 import java.security.SecureRandom
 
 /**

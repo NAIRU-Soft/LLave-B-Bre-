@@ -1,5 +1,6 @@
 package com.nairusoft.bbre.security
 
+import com.nairusoft.bbre.model.UserKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

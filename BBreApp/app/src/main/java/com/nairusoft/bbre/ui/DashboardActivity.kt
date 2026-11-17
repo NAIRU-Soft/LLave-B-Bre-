@@ -16,10 +16,13 @@ import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
@@ -27,29 +30,23 @@ import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
+import com.nairusoft.bbre.model.AccountDeleteOutcome
+import com.nairusoft.bbre.model.ProfileUpdateOutcome
+import com.nairusoft.bbre.model.ReauthOutcome
+import com.nairusoft.bbre.model.StorageOpResult
+import com.nairusoft.bbre.model.UserKey
 import com.nairusoft.bbre.security.AuthValidator
 import com.nairusoft.bbre.security.KeyUtils
-import com.nairusoft.bbre.security.SecurityManager
-import com.nairusoft.bbre.security.SessionManager
-import com.nairusoft.bbre.security.StorageLoadResult
-import com.nairusoft.bbre.security.StorageManager
-import com.nairusoft.bbre.security.StorageOpResult
-import com.nairusoft.bbre.security.UserKey
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDashboardBinding
-    private lateinit var securityManager: SecurityManager
-    private lateinit var storageManager: StorageManager
-    private val sessionManager: SessionManager = SessionManager.getInstance()
+    private val viewModel: DashboardViewModel by viewModels { DashboardViewModel.factory(this) }
     private lateinit var keysAdapter: KeysAdapter
-    private var currentUser: String = ""
-    private var currentUserKeys: List<UserKey> = emptyList()
     private var isRedirectingToLogin = false
     private var isKeysTabSelected = true
     private var isUpdatingBottomNav = false
@@ -72,8 +69,8 @@ class DashboardActivity : AppCompatActivity() {
     override fun onUserInteraction() {
         super.onUserInteraction()
         if (isRedirectingToLogin) return
-        sessionManager.recordActivity()
-        scheduleRemainingTimeout()
+        val remaining = viewModel.recordUserActivity()
+        scheduleRemainingTimeout(remaining)
     }
 
     override fun onStart() {
@@ -84,7 +81,7 @@ class DashboardActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!ensureValidSessionOrLogout()) return
-        scheduleRemainingTimeout()
+        scheduleRemainingTimeout(viewModel.remainingTimeoutMs())
     }
 
     override fun onPause() {
@@ -102,9 +99,8 @@ class DashboardActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun scheduleRemainingTimeout() {
+    private fun scheduleRemainingTimeout(remaining: Long = viewModel.remainingTimeoutMs()) {
         logoutHandler.removeCallbacks(logoutRunnable)
-        val remaining = sessionManager.remainingTimeoutMs()
         if (remaining <= 0L) {
             autoLogout()
         } else {
@@ -114,11 +110,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun ensureValidSessionOrLogout(): Boolean {
         if (isRedirectingToLogin) return false
-        val storedUser = securityManager.getSecureData(SessionManager.KEY_SESSION_USERNAME)
-        val active = sessionManager.isSessionActive()
-        val matchesStored = storedUser.isNotEmpty() &&
-            sessionManager.activeUsername.equals(storedUser, ignoreCase = true)
-        if (!active || !matchesStored) {
+        if (!viewModel.isSessionValid()) {
             autoLogout()
             return false
         }
@@ -135,10 +127,7 @@ class DashboardActivity : AppCompatActivity() {
         logoutHandler.removeCallbacks(logoutRunnable)
         activeDialog?.dismiss()
         activeDialog = null
-        sessionManager.clearSession()
-        securityManager.removeSecureData(SessionManager.KEY_SESSION_USERNAME)
-        currentUser = ""
-        currentUserKeys = emptyList()
+        viewModel.clearSessionAndInMemoryData()
         if (::keysAdapter.isInitialized) {
             keysAdapter.updateData(emptyList())
         }
@@ -162,18 +151,10 @@ class DashboardActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_SECURE
         )
 
-        securityManager = SecurityManager.getInstance(this)
-        storageManager = StorageManager.getInstance(this)
-
-        val storedUser = securityManager.getSecureData(SessionManager.KEY_SESSION_USERNAME)
-        if (storedUser.isEmpty() ||
-            !sessionManager.isSessionActive() ||
-            !sessionManager.activeUsername.equals(storedUser, ignoreCase = true)
-        ) {
+        if (viewModel.initializeActiveSession() == null) {
             performManualLogout()
             return
         }
-        currentUser = storedUser
 
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -182,6 +163,7 @@ class DashboardActivity : AppCompatActivity() {
         setupBottomNavigation()
         setupKeysTab()
         setupSettingsTab()
+        observeViewModel()
 
         val restoreKeysTab = savedInstanceState?.getBoolean(STATE_ACTIVE_TAB_KEYS, true) ?: true
         switchTab(restoreKeysTab)
@@ -203,6 +185,30 @@ class DashboardActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
+    }
+
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.keys.collect { keys ->
+                        if (keys.isEmpty()) {
+                            binding.llEmptyState.visibility = View.VISIBLE
+                            binding.rvKeys.visibility = View.GONE
+                        } else {
+                            binding.llEmptyState.visibility = View.GONE
+                            binding.rvKeys.visibility = View.VISIBLE
+                        }
+                        keysAdapter.updateData(keys)
+                    }
+                }
+                launch {
+                    viewModel.errorMessages.collect { message ->
+                        Toast.makeText(this@DashboardActivity, message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun setupBottomNavigation() {
@@ -235,14 +241,14 @@ class DashboardActivity : AppCompatActivity() {
             binding.layoutKeys.visibility = View.VISIBLE
             binding.layoutSettings.visibility = View.GONE
             supportActionBar?.title = getString(R.string.nav_my_keys)
-            loadKeysList()
+            viewModel.loadKeys()
         } else {
             binding.layoutKeys.visibility = View.GONE
             binding.layoutSettings.visibility = View.VISIBLE
             supportActionBar?.title = getString(R.string.nav_settings)
 
             // Reload user info into settings fields
-            binding.etSettingsUsername.setText(currentUser)
+            binding.etSettingsUsername.setText(viewModel.currentUser.value)
             binding.etSettingsPassword.text?.clear()
             binding.tilSettingsUsername.error = null
             binding.tilSettingsPassword.error = null
@@ -273,30 +279,7 @@ class DashboardActivity : AppCompatActivity() {
             showKeyDialog(null)
         }
 
-        loadKeysList()
-    }
-
-    private fun loadKeysList() {
-        lifecycleScope.launch {
-            when (val result = storageManager.getKeysForUserResult(currentUser)) {
-                is StorageLoadResult.Success -> {
-                    val keys = result.data
-                    currentUserKeys = keys
-                    if (keys.isEmpty()) {
-                        binding.llEmptyState.visibility = View.VISIBLE
-                        binding.rvKeys.visibility = View.GONE
-                        keysAdapter.updateData(emptyList())
-                    } else {
-                        binding.llEmptyState.visibility = View.GONE
-                        binding.rvKeys.visibility = View.VISIBLE
-                        keysAdapter.updateData(keys)
-                    }
-                }
-                is StorageLoadResult.Error -> {
-                    Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
-                }
-            }
-        }
+        viewModel.loadKeys()
     }
 
     private fun copyToClipboard(text: String) {
@@ -340,7 +323,7 @@ class DashboardActivity : AppCompatActivity() {
             .setMessage(
                 getString(
                     R.string.dialog_key_info_body,
-                    key.createdBy.ifEmpty { currentUser },
+                    key.createdBy.ifEmpty { viewModel.currentUser.value },
                     key.type,
                     key.description.ifEmpty { getString(R.string.value_no_description) },
                     key.value,
@@ -370,7 +353,7 @@ class DashboardActivity : AppCompatActivity() {
 
         // Merge base banks with custom banks already saved by the user (sorted, no duplicates)
         val customBankOption = getString(R.string.option_add_new_bank)
-        val bankOptions = KeyUtils.buildBankOptions(currentUserKeys, customBankOption)
+        val bankOptions = viewModel.getBankOptions(customBankOption)
         val bankAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, bankOptions)
         dialogBinding.actvKeyType.setAdapter(bankAdapter)
 
@@ -411,11 +394,9 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         dialogBinding.btnGenerateKey.setOnClickListener {
-            sessionManager.recordActivity()
-            scheduleRemainingTimeout()
-            val generatedCode = KeyUtils.generateUniqueAlphanumericCode(
-                currentUserKeys.map { it.value }
-            )
+            val remaining = viewModel.recordUserActivity()
+            scheduleRemainingTimeout(remaining)
+            val generatedCode = viewModel.generateUniqueCode()
             dialogBinding.etKeyValue.setText(generatedCode)
             dialogBinding.etKeyValue.setSelection(generatedCode.length)
             dialogBinding.tilKeyValue.error = null
@@ -426,8 +407,8 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         dialogBinding.btnSave.setOnClickListener {
-            sessionManager.recordActivity()
-            scheduleRemainingTimeout()
+            val remaining = viewModel.recordUserActivity()
+            scheduleRemainingTimeout(remaining)
 
             // Clear previous errors before validating
             dialogBinding.tilKeyType.error = null
@@ -465,59 +446,35 @@ class DashboardActivity : AppCompatActivity() {
 
             if (hasError) return@setOnClickListener
 
-            val currentTime = getCurrentFormattedDate()
-
-            lifecycleScope.launch {
-                if (existingKey == null) {
-                    // Add key
-                    val newKey = UserKey(
-                        id = UUID.randomUUID().toString(),
-                        type = type,
-                        value = value,
-                        username = currentUser,
-                        createdBy = currentUser,
-                        creationDate = currentTime,
-                        modificationDate = currentTime,
-                        version = "0.0.1",
-                        description = description
-                    )
-                    when (val result = storageManager.addKey(newKey)) {
-                        is StorageOpResult.Success -> {
-                            Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_added), Toast.LENGTH_SHORT).show()
-                            dialog.dismiss()
-                            loadKeysList()
-                        }
-                        is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = getString(R.string.error_duplicate_key)
-                        }
-                        is StorageOpResult.Error -> {
-                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
-                        }
-                        is StorageOpResult.NotFound -> Unit
+            dialogBinding.btnSave.isEnabled = false
+            viewModel.saveKey(
+                existingKey = existingKey,
+                type = type,
+                value = value,
+                description = description,
+                timestamp = getCurrentFormattedDate()
+            ) { result ->
+                if (isFinishing || isDestroyed) return@saveKey
+                dialogBinding.btnSave.isEnabled = true
+                when (result) {
+                    is StorageOpResult.Success -> {
+                        val msgRes = if (existingKey == null) R.string.msg_key_added else R.string.msg_key_updated
+                        Toast.makeText(this@DashboardActivity, getString(msgRes), Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
                     }
-                } else {
-                    // Update key & bump patch version
-                    val updatedKey = existingKey.copy(
-                        type = type,
-                        value = value,
-                        description = description,
-                        modificationDate = currentTime,
-                        version = KeyUtils.incrementPatchVersion(existingKey.version)
-                    )
-                    when (val result = storageManager.updateKey(updatedKey)) {
-                        is StorageOpResult.Success -> {
-                            Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_updated), Toast.LENGTH_SHORT).show()
-                            dialog.dismiss()
-                            loadKeysList()
-                        }
-                        is StorageOpResult.Duplicate -> {
-                            dialogBinding.tilKeyValue.error = getString(R.string.error_duplicate_key)
-                        }
-                        is StorageOpResult.Error -> {
-                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
-                        }
-                        is StorageOpResult.NotFound -> {
-                            Toast.makeText(this@DashboardActivity, getString(R.string.error_key_not_found), Toast.LENGTH_SHORT).show()
+                    is StorageOpResult.Duplicate -> {
+                        dialogBinding.tilKeyValue.error = getString(R.string.error_duplicate_key)
+                    }
+                    is StorageOpResult.Error -> {
+                        Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                    }
+                    is StorageOpResult.NotFound -> {
+                        if (existingKey != null) {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.error_key_not_found),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 }
@@ -533,11 +490,11 @@ class DashboardActivity : AppCompatActivity() {
             .setTitle(getString(R.string.dialog_delete_key_title))
             .setMessage(getString(R.string.dialog_delete_key_message))
             .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
-                lifecycleScope.launch {
-                    when (val result = storageManager.deleteKey(userKey.id)) {
+                viewModel.deleteKey(userKey.id) { result ->
+                    if (isFinishing || isDestroyed) return@deleteKey
+                    when (result) {
                         is StorageOpResult.Success -> {
                             Toast.makeText(this@DashboardActivity, getString(R.string.msg_key_deleted), Toast.LENGTH_SHORT).show()
-                            loadKeysList()
                         }
                         is StorageOpResult.Error -> {
                             Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
@@ -587,81 +544,58 @@ class DashboardActivity : AppCompatActivity() {
             }
             binding.tilSettingsPassword.error = null
 
-            lifecycleScope.launch {
-                val users = when (val load = storageManager.getUsersResult()) {
-                    is StorageLoadResult.Success -> load.data
-                    is StorageLoadResult.Error -> {
-                        Toast.makeText(this@DashboardActivity, load.message, Toast.LENGTH_LONG).show()
-                        return@launch
-                    }
-                }
-                val foundUser = users.find { it.username.equals(currentUser, ignoreCase = true) }
-                if (foundUser == null) {
-                    Toast.makeText(
-                        this@DashboardActivity,
-                        getString(R.string.error_current_user_missing),
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-
-                if (newUsername == foundUser.username && newPassword.isEmpty()) {
-                    Toast.makeText(this@DashboardActivity, getString(R.string.msg_no_changes), Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
-                val applyProfileUpdate: () -> Unit = {
-                    lifecycleScope.launch {
-                        val updatedUser = if (newPassword.isNotEmpty()) {
-                            securityManager.createUserCredentials(newUsername, newPassword)
-                        } else {
-                            // Keep historical createdBy intact on existing keys (D-04)
-                            foundUser.copy(username = newUsername)
+            val applyProfileUpdate: () -> Unit = {
+                viewModel.updateProfile(newUsername, newPassword) { outcome ->
+                    if (isFinishing || isDestroyed) return@updateProfile
+                    when (outcome) {
+                        is ProfileUpdateOutcome.Updated -> {
+                            binding.etSettingsPassword.text?.clear()
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.msg_profile_updated),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            switchTab(true)
                         }
-                        when (val updateResult = storageManager.updateUser(currentUser, updatedUser)) {
-                            is StorageOpResult.Success -> {
-                                val usernameChanged = !currentUser.equals(newUsername, ignoreCase = true)
-                                currentUser = newUsername
-                                sessionManager.updateActiveUsername(newUsername)
-                                securityManager.storeSecureData(SessionManager.KEY_SESSION_USERNAME, newUsername)
-                                securityManager.storeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER, newUsername)
-                                if (usernameChanged) {
-                                    securityManager.clearBiometricEnrollment()
-                                }
-                                binding.etSettingsPassword.text?.clear()
-                                Toast.makeText(
-                                    this@DashboardActivity,
-                                    getString(R.string.msg_profile_updated),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                switchTab(true)
-                            }
-                            is StorageOpResult.Duplicate -> {
-                                binding.tilSettingsUsername.error = getString(R.string.error_settings_username_taken)
-                            }
-                            is StorageOpResult.NotFound -> {
-                                Toast.makeText(
-                                    this@DashboardActivity,
-                                    getString(R.string.error_user_update_not_found),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                            is StorageOpResult.Error -> {
-                                Toast.makeText(this@DashboardActivity, updateResult.message, Toast.LENGTH_LONG).show()
-                            }
+                        is ProfileUpdateOutcome.NoChanges -> {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.msg_no_changes),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        is ProfileUpdateOutcome.UserMissing -> {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.error_current_user_missing),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        is ProfileUpdateOutcome.DuplicateUsername -> {
+                            binding.tilSettingsUsername.error = getString(R.string.error_settings_username_taken)
+                        }
+                        is ProfileUpdateOutcome.UpdateNotFound -> {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.error_user_update_not_found),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        is ProfileUpdateOutcome.Error -> {
+                            Toast.makeText(this@DashboardActivity, outcome.message, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
+            }
 
-                if (newPassword.isNotEmpty()) {
-                    requestReauthentication(
-                        title = getString(R.string.dialog_reauth_title),
-                        message = getString(R.string.dialog_reauth_password_change_msg),
-                        onAuthenticated = applyProfileUpdate
-                    )
-                } else {
-                    applyProfileUpdate()
-                }
+            if (newPassword.isNotEmpty()) {
+                requestReauthentication(
+                    title = getString(R.string.dialog_reauth_title),
+                    message = getString(R.string.dialog_reauth_password_change_msg),
+                    onAuthenticated = applyProfileUpdate
+                )
+            } else {
+                applyProfileUpdate()
             }
         }
 
@@ -680,12 +614,14 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showSystemInfoDialog() {
         activeDialog?.dismiss()
+        val activeUser = viewModel.currentUser.value
+        val currentUserKeys = viewModel.keys.value
         val latestKey = currentUserKeys.maxByOrNull { it.modificationDate.ifEmpty { it.creationDate } }
         val keysSummary = if (latestKey != null) {
             getString(
                 R.string.dialog_system_info_latest_key,
                 latestKey.type,
-                latestKey.createdBy.ifEmpty { currentUser },
+                latestKey.createdBy.ifEmpty { activeUser },
                 latestKey.creationDate.ifEmpty { getString(R.string.value_unknown) },
                 latestKey.modificationDate.ifEmpty { getString(R.string.value_no_modifications) },
                 latestKey.version
@@ -699,7 +635,7 @@ class DashboardActivity : AppCompatActivity() {
             .setMessage(
                 getString(
                     R.string.dialog_system_info_base,
-                    currentUser,
+                    activeUser,
                     currentUserKeys.size,
                     "0.0.1"
                 ) + keysSummary
@@ -763,23 +699,19 @@ class DashboardActivity : AppCompatActivity() {
                 tilCurrentPassword.error = null
                 positiveBtn.isEnabled = false
 
-                lifecycleScope.launch {
-                    val loadResult = storageManager.getUsersResult()
+                viewModel.verifyCurrentPassword(enteredPassword) { outcome ->
+                    if (isFinishing || isDestroyed) return@verifyCurrentPassword
                     positiveBtn.isEnabled = true
-                    when (loadResult) {
-                        is StorageLoadResult.Error -> {
-                            Toast.makeText(this@DashboardActivity, loadResult.message, Toast.LENGTH_LONG).show()
+                    when (outcome) {
+                        is ReauthOutcome.Verified -> {
+                            dialog.dismiss()
+                            onAuthenticated()
                         }
-                        is StorageLoadResult.Success -> {
-                            val user = loadResult.data.find {
-                                it.username.equals(currentUser, ignoreCase = true)
-                            }
-                            if (user != null && securityManager.verifyUserPassword(user, enteredPassword)) {
-                                dialog.dismiss()
-                                onAuthenticated()
-                            } else {
-                                tilCurrentPassword.error = getString(R.string.error_current_password_wrong)
-                            }
+                        is ReauthOutcome.WrongPassword -> {
+                            tilCurrentPassword.error = getString(R.string.error_current_password_wrong)
+                        }
+                        is ReauthOutcome.Error -> {
+                            Toast.makeText(this@DashboardActivity, outcome.message, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -789,20 +721,20 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showDeleteAccountConfirmation() {
+        val activeUser = viewModel.currentUser.value
         activeDialog?.dismiss()
         activeDialog = MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.dialog_delete_account_title))
-            .setMessage(getString(R.string.dialog_delete_account_message, currentUser))
+            .setMessage(getString(R.string.dialog_delete_account_message, activeUser))
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 requestReauthentication(
                     title = getString(R.string.dialog_delete_account_reauth_title),
                     message = getString(R.string.dialog_delete_account_reauth_message)
                 ) {
-                    lifecycleScope.launch {
-                        when (val result = storageManager.deleteUser(currentUser)) {
-                            is StorageOpResult.Success -> {
-                                securityManager.clearBiometricEnrollment()
-                                securityManager.removeSecureData(SessionManager.KEY_LAST_LOGGED_IN_USER)
+                    viewModel.deleteAccount { outcome ->
+                        if (isFinishing || isDestroyed) return@deleteAccount
+                        when (outcome) {
+                            is AccountDeleteOutcome.Success -> {
                                 Toast.makeText(
                                     this@DashboardActivity,
                                     getString(R.string.msg_account_deleted),
@@ -810,17 +742,16 @@ class DashboardActivity : AppCompatActivity() {
                                 ).show()
                                 performManualLogout()
                             }
-                            is StorageOpResult.Error -> {
-                                Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                            is AccountDeleteOutcome.Error -> {
+                                Toast.makeText(this@DashboardActivity, outcome.message, Toast.LENGTH_LONG).show()
                             }
-                            is StorageOpResult.NotFound -> {
+                            is AccountDeleteOutcome.NotFound -> {
                                 Toast.makeText(
                                     this@DashboardActivity,
                                     getString(R.string.error_account_not_found),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
-                            is StorageOpResult.Duplicate -> Unit
                         }
                     }
                 }

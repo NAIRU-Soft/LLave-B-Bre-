@@ -10,6 +10,7 @@ import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.nairusoft.bbre.BuildConfig
+import com.nairusoft.bbre.model.User
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
 import java.security.MessageDigest
