@@ -1,5 +1,6 @@
 package com.nairusoft.bbre.security
 
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageLoadResult
 import com.nairusoft.bbre.model.StorageOpResult
 import com.nairusoft.bbre.model.User
@@ -163,5 +164,48 @@ class StorageManagerTest {
 
         val loaded = storage.getKeysForUserResult("ana") as StorageLoadResult.Success
         assertEquals(20, loaded.data.size)
+    }
+
+    @Test
+    fun importKeysForUser_deduplicatesAndRegeneratesCollidingIdsAcrossUsers() = runBlocking {
+        val dir = tempFolder.newFolder("bbre_import")
+        val storage = StorageManager(dir, FakeCryptoProvider())
+
+        assertEquals(StorageOpResult.Success, storage.addUser(User("ana", "h1")))
+        assertEquals(StorageOpResult.Success, storage.addUser(User("carlos", "h2")))
+
+        val anaKey = UserKey(
+            id = "shared-uuid",
+            type = "Bancolombia",
+            value = "123456",
+            username = "ana",
+            createdBy = "ana",
+            description = "Cuenta Ana"
+        )
+        assertEquals(StorageOpResult.Success, storage.addKey(anaKey))
+
+        val incoming = listOf(
+            anaKey, // colliding UUID owned by ana -> must import cleanly into carlos with new UUID
+            UserKey(id = "k-2", type = "Nequi", value = "3007778899", username = "ana", createdBy = "ana", description = "Nequi"),
+            UserKey(id = "k-3", type = " nequi ", value = " 3007778899 ", username = "ana", createdBy = "ana", description = "Dup")
+        )
+        val summary = storage.importKeysForUser("carlos", incoming).getOrThrow()
+        assertEquals(2, summary.importedCount)
+        assertEquals(1, summary.skippedDuplicates)
+
+        val carlosKeys = (storage.getKeysForUserResult("carlos") as StorageLoadResult.Success).data
+        assertEquals(2, carlosKeys.size)
+        assertTrue(carlosKeys.none { it.id == "shared-uuid" })
+        assertTrue(carlosKeys.all { it.username == "carlos" && it.createdBy == "ana" })
+
+        val restoreCollision = storage.restoreAccountWithKeys(User("ana", "otherHash"), emptyList())
+        assertTrue(restoreCollision is RestoreAccountResult.UserAlreadyExists)
+
+        val restoreNew = storage.restoreAccountWithKeys(
+            User("lucia", "hashLucia"),
+            listOf(UserKey(id = "l-1", type = "Daviplata", value = "3110001122", username = "lucia", createdBy = "lucia"))
+        )
+        assertTrue(restoreNew is RestoreAccountResult.Restored)
+        assertEquals(1, (storage.getKeysForUserResult("lucia") as StorageLoadResult.Success).data.size)
     }
 }

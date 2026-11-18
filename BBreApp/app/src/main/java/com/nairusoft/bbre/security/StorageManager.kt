@@ -1,6 +1,8 @@
 package com.nairusoft.bbre.security
 
 import android.content.Context
+import com.nairusoft.bbre.model.KeyImportSummary
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageLoadResult
 import com.nairusoft.bbre.model.StorageOpResult
 import com.nairusoft.bbre.model.User
@@ -348,5 +350,121 @@ class StorageManager(
                 onFailure = { StorageOpResult.Error(it, "No se pudo eliminar la llave") }
             )
         }
+    }
+
+    /**
+     * Merges [incomingKeys] into [targetUsername] under [ioMutex], skipping per-user duplicates
+     * and assigning fresh UUIDs if an imported id collides with another user's existing key.
+     */
+    suspend fun importKeysForUser(
+        targetUsername: String,
+        incomingKeys: List<UserKey>
+    ): Result<KeyImportSummary> = withContext(Dispatchers.IO) {
+        ioMutex.withLock {
+            val existingKeys = when (val load = readEncryptedList<UserKey>(KEYS_FILE)) {
+                is StorageLoadResult.Success -> load.data.toMutableList()
+                is StorageLoadResult.Error -> return@withLock Result.failure(load.cause)
+            }
+            val summary = mergeIncomingKeys(existingKeys, targetUsername, incomingKeys)
+            if (summary.importedCount > 0) {
+                writeEncryptedList(KEYS_FILE, existingKeys).onFailure { error ->
+                    return@withLock Result.failure(error)
+                }
+            }
+            Result.success(summary)
+        }
+    }
+
+    /**
+     * Restores an absent [user] record together with its [incomingKeys] atomically without modifying
+     * or overwriting any already registered users or keys.
+     */
+    suspend fun restoreAccountWithKeys(
+        user: User,
+        incomingKeys: List<UserKey>
+    ): RestoreAccountResult = withContext(Dispatchers.IO) {
+        ioMutex.withLock {
+            val users = when (val load = readEncryptedList<User>(USERS_FILE)) {
+                is StorageLoadResult.Success -> load.data.toMutableList()
+                is StorageLoadResult.Error -> return@withLock RestoreAccountResult.Error(load.cause, load.message)
+            }
+            if (users.any { it.username.equals(user.username, ignoreCase = true) }) {
+                return@withLock RestoreAccountResult.UserAlreadyExists
+            }
+
+            val keys = when (val load = readEncryptedList<UserKey>(KEYS_FILE)) {
+                is StorageLoadResult.Success -> load.data.toMutableList()
+                is StorageLoadResult.Error -> return@withLock RestoreAccountResult.Error(load.cause, load.message)
+            }
+
+            val summary = mergeIncomingKeys(keys, user.username, incomingKeys)
+            if (summary.importedCount > 0) {
+                writeEncryptedList(KEYS_FILE, keys).onFailure { error ->
+                    return@withLock RestoreAccountResult.Error(error, "No se pudieron restaurar las llaves de la cuenta")
+                }
+            }
+
+            users.add(user)
+            writeEncryptedList(USERS_FILE, users).fold(
+                onSuccess = { RestoreAccountResult.Restored(summary) },
+                onFailure = { RestoreAccountResult.Error(it, "No se pudo restaurar el usuario del respaldo") }
+            )
+        }
+    }
+
+    private fun mergeIncomingKeys(
+        targetList: MutableList<UserKey>,
+        targetUsername: String,
+        incomingKeys: List<UserKey>
+    ): KeyImportSummary {
+        var importedCount = 0
+        var skippedDuplicates = 0
+
+        for (rawKey in incomingKeys) {
+            val normalizedType = KeyUtils.normalizeField(rawKey.type)
+            val normalizedValue = KeyUtils.normalizeKeyValue(rawKey.value)
+            val normalizedDesc = KeyUtils.normalizeField(rawKey.description)
+            if (normalizedType.isEmpty() || normalizedValue.isEmpty()) {
+                skippedDuplicates++
+                continue
+            }
+
+            val duplicateForTarget = targetList.any { existing ->
+                existing.username.equals(targetUsername, ignoreCase = true) && (
+                    existing.id == rawKey.id || (
+                        KeyUtils.normalizeField(existing.type).equals(normalizedType, ignoreCase = true) &&
+                            KeyUtils.normalizeKeyValue(existing.value).equals(normalizedValue, ignoreCase = true)
+                        )
+                    )
+            }
+            if (duplicateForTarget) {
+                skippedDuplicates++
+                continue
+            }
+
+            val assignedId = if (rawKey.id.isBlank() || targetList.any { it.id == rawKey.id }) {
+                UUID.randomUUID().toString()
+            } else {
+                rawKey.id
+            }
+
+            val resolvedCreatedBy = KeyUtils.normalizeField(rawKey.createdBy).ifEmpty { targetUsername }
+            targetList.add(
+                UserKey(
+                    id = assignedId,
+                    type = normalizedType,
+                    value = normalizedValue,
+                    username = targetUsername,
+                    createdBy = resolvedCreatedBy,
+                    creationDate = rawKey.creationDate,
+                    modificationDate = rawKey.modificationDate,
+                    version = rawKey.version.ifBlank { "0.0.1" },
+                    description = normalizedDesc
+                )
+            )
+            importedCount++
+        }
+
+        return KeyImportSummary(importedCount = importedCount, skippedDuplicates = skippedDuplicates)
     }
 }

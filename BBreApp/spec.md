@@ -65,3 +65,9 @@ necesito modificar esta aplicación y recuerda que deseo que revises este archiv
 y que pongas atención a este archivo:
 .gitignore 
 donde evito que .agents y Test sean incluidos.
+
+
+feature 0.0.2
+en el boton de configuración debe existir dos criterios para almacenar (guardar) y cargar la información contenida en la aplicación
+la información es usuario, clave, la información almacenada, esta información debe estar encriptada para guardar y desencriptada para cargar 
+debe tener criterios de seguiridad tipo AES-256.

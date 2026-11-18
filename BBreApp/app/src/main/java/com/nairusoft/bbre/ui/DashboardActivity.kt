@@ -5,6 +5,7 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PersistableBundle
@@ -16,6 +17,7 @@ import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -30,16 +32,25 @@ import com.google.android.material.textfield.TextInputLayout
 import com.nairusoft.bbre.BuildConfig
 import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivityDashboardBinding
+import com.nairusoft.bbre.databinding.DialogBackupExportBinding
+import com.nairusoft.bbre.databinding.DialogBackupImportBinding
 import com.nairusoft.bbre.databinding.DialogKeyBinding
 import com.nairusoft.bbre.model.AccountDeleteOutcome
 import com.nairusoft.bbre.model.ProfileUpdateOutcome
 import com.nairusoft.bbre.model.ReauthOutcome
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageOpResult
 import com.nairusoft.bbre.model.UserKey
 import com.nairusoft.bbre.security.AuthValidator
+import com.nairusoft.bbre.security.BackupCryptoManager
 import com.nairusoft.bbre.security.KeyUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
+import java.util.Arrays
 import java.util.Date
 import java.util.Locale
 
@@ -52,6 +63,17 @@ class DashboardActivity : AppCompatActivity() {
     private var isKeysTabSelected = true
     private var isUpdatingBottomNav = false
     private var activeDialog: AlertDialog? = null
+    private var pendingExportPassword: CharArray? = null
+
+    private val exportBackupLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            handleExportUriSelected(uri)
+        }
+
+    private val importBackupLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            handleImportUriSelected(uri)
+        }
 
     companion object {
         private const val STATE_ACTIVE_TAB_KEYS = "state_active_tab_keys"
@@ -94,6 +116,8 @@ class DashboardActivity : AppCompatActivity() {
     override fun onDestroy() {
         logoutHandler.removeCallbacks(logoutRunnable)
         clipboardHandler.removeCallbacks(clearClipboardRunnable)
+        activeDialog?.dismiss()
+        activeDialog = null
         if (isFinishing && !isChangingConfigurations) {
             clearInMemoryAndStoredSession()
         }
@@ -124,8 +148,14 @@ class DashboardActivity : AppCompatActivity() {
         performManualLogout()
     }
 
+    private fun clearPendingExportPassword() {
+        pendingExportPassword?.let { Arrays.fill(it, '\u0000') }
+        pendingExportPassword = null
+    }
+
     private fun clearInMemoryAndStoredSession() {
         logoutHandler.removeCallbacks(logoutRunnable)
+        clearPendingExportPassword()
         activeDialog?.dismiss()
         activeDialog = null
         viewModel.clearSessionAndInMemoryData()
@@ -600,6 +630,17 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnExportBackup.setOnClickListener {
+            showExportBackupDialog()
+        }
+
+        binding.btnImportBackup.setOnClickListener {
+            if (!ensureValidSessionOrLogout()) return@setOnClickListener
+            val remaining = viewModel.recordUserActivity()
+            scheduleRemainingTimeout(remaining)
+            importBackupLauncher.launch(arrayOf("application/octet-stream", "application/json", "*/*"))
+        }
+
         binding.btnSystemInfo.setOnClickListener {
             showSystemInfoDialog()
         }
@@ -611,6 +652,364 @@ class DashboardActivity : AppCompatActivity() {
         binding.btnDeleteAccount.setOnClickListener {
             showDeleteAccountConfirmation()
         }
+    }
+
+    // --- Encrypted Backup (AES-256-GCM) Flows ---
+
+    private fun showExportBackupDialog() {
+        activeDialog?.dismiss()
+        val dialogBinding = DialogBackupExportBinding.inflate(LayoutInflater.from(this))
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogBinding.root)
+            .create()
+        dialog.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+        activeDialog = dialog
+
+        dialogBinding.etExportCurrentPassword.doAfterTextChanged {
+            dialogBinding.tilExportCurrentPassword.error = null
+        }
+        dialogBinding.etExportBackupPassword.doAfterTextChanged {
+            dialogBinding.tilExportBackupPassword.error = null
+        }
+        dialogBinding.etExportBackupConfirm.doAfterTextChanged {
+            dialogBinding.tilExportBackupConfirm.error = null
+        }
+
+        dialogBinding.btnCancelExport.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnConfirmExport.setOnClickListener {
+            val remaining = viewModel.recordUserActivity()
+            scheduleRemainingTimeout(remaining)
+
+            dialogBinding.tilExportCurrentPassword.error = null
+            dialogBinding.tilExportBackupPassword.error = null
+            dialogBinding.tilExportBackupConfirm.error = null
+
+            val currentPassword = dialogBinding.etExportCurrentPassword.text?.toString() ?: ""
+            val backupPassword = dialogBinding.etExportBackupPassword.text?.toString() ?: ""
+            val confirmPassword = dialogBinding.etExportBackupConfirm.text?.toString() ?: ""
+
+            var hasError = false
+            if (currentPassword.isEmpty()) {
+                dialogBinding.tilExportCurrentPassword.error = getString(R.string.error_current_password_empty)
+                hasError = true
+            }
+
+            when (AuthValidator.validatePassword(backupPassword)) {
+                AuthValidator.PasswordError.EMPTY -> {
+                    dialogBinding.tilExportBackupPassword.error = getString(R.string.error_password_empty)
+                    hasError = true
+                }
+                AuthValidator.PasswordError.CONTAINS_WHITESPACE -> {
+                    dialogBinding.tilExportBackupPassword.error = getString(R.string.error_password_spaces)
+                    hasError = true
+                }
+                AuthValidator.PasswordError.TOO_SHORT -> {
+                    dialogBinding.tilExportBackupPassword.error = getString(R.string.error_password_min_length)
+                    hasError = true
+                }
+                null -> Unit
+            }
+
+            if (confirmPassword != backupPassword) {
+                dialogBinding.tilExportBackupConfirm.error = getString(R.string.error_backup_password_mismatch)
+                hasError = true
+            }
+
+            if (hasError) return@setOnClickListener
+
+            dialogBinding.btnConfirmExport.isEnabled = false
+            viewModel.verifyCurrentPassword(currentPassword) { outcome ->
+                if (isFinishing || isDestroyed) return@verifyCurrentPassword
+                dialogBinding.btnConfirmExport.isEnabled = true
+                when (outcome) {
+                    is ReauthOutcome.Verified -> {
+                        clearPendingExportPassword()
+                        pendingExportPassword = backupPassword.toCharArray()
+                        dialog.dismiss()
+
+                        val safeUser = viewModel.currentUser.value
+                            .replace(Regex("[^A-Za-z0-9_-]"), "_")
+                            .ifEmpty { "usuario" }
+                        val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date())
+                        exportBackupLauncher.launch("bbre_respaldo_${safeUser}_${stamp}.bbre")
+                    }
+                    is ReauthOutcome.WrongPassword -> {
+                        dialogBinding.tilExportCurrentPassword.error = getString(R.string.error_current_password_wrong)
+                    }
+                    is ReauthOutcome.Error -> {
+                        Toast.makeText(this@DashboardActivity, outcome.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun handleExportUriSelected(uri: Uri?) {
+        val passphrase = pendingExportPassword
+        pendingExportPassword = null
+
+        if (uri == null || passphrase == null) {
+            passphrase?.let { Arrays.fill(it, '\u0000') }
+            return
+        }
+        if (!ensureValidSessionOrLogout()) {
+            Arrays.fill(passphrase, '\u0000')
+            return
+        }
+
+        val remaining = viewModel.recordUserActivity()
+        scheduleRemainingTimeout(remaining)
+
+        viewModel.exportEncryptedBackup(
+            backupPassword = passphrase,
+            appVersion = BuildConfig.VERSION_NAME,
+            exportedAt = getCurrentFormattedDate()
+        ) { result ->
+            if (isFinishing || isDestroyed) return@exportEncryptedBackup
+            result.fold(
+                onSuccess = { bundle ->
+                    lifecycleScope.launch {
+                        val writeResult = withContext(Dispatchers.IO) {
+                            runCatching {
+                                contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                                    output.write(bundle.encryptedJson.toByteArray(StandardCharsets.UTF_8))
+                                    output.flush()
+                                } ?: throw IllegalStateException("No se pudo abrir el destino para escritura")
+                            }
+                        }
+                        if (isFinishing || isDestroyed) return@launch
+                        writeResult.fold(
+                            onSuccess = {
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    getString(R.string.msg_backup_saved, bundle.keyCount),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            onFailure = { error ->
+                                Toast.makeText(
+                                    this@DashboardActivity,
+                                    getString(R.string.error_backup_save_failed, error.localizedMessage ?: ""),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    Toast.makeText(
+                        this@DashboardActivity,
+                        getString(R.string.error_backup_save_failed, error.localizedMessage ?: ""),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            )
+        }
+    }
+
+    private fun handleImportUriSelected(uri: Uri?) {
+        if (uri == null || !ensureValidSessionOrLogout()) return
+        val remaining = viewModel.recordUserActivity()
+        scheduleRemainingTimeout(remaining)
+
+        lifecycleScope.launch {
+            val readOutcome = withContext(Dispatchers.IO) {
+                readBoundedBackupFile(uri)
+            }
+            if (isFinishing || isDestroyed) return@launch
+            readOutcome.fold(
+                onSuccess = { envelopeJson ->
+                    showImportBackupDialog(envelopeJson)
+                },
+                onFailure = { error ->
+                    val messageRes = if (error is BackupFileTooLargeException) {
+                        R.string.error_backup_file_too_large
+                    } else {
+                        R.string.error_backup_file_read
+                    }
+                    Toast.makeText(this@DashboardActivity, getString(messageRes), Toast.LENGTH_LONG).show()
+                }
+            )
+        }
+    }
+
+    private class BackupFileTooLargeException : Exception()
+
+    private fun readBoundedBackupFile(uri: Uri): Result<String> {
+        return runCatching {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val buffer = ByteArray(8192)
+                val out = ByteArrayOutputStream()
+                var total = 0
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read == -1) break
+                    total += read
+                    if (total > BackupCryptoManager.MAX_BACKUP_BYTES) {
+                        throw BackupFileTooLargeException()
+                    }
+                    out.write(buffer, 0, read)
+                }
+                val text = String(out.toByteArray(), StandardCharsets.UTF_8)
+                if (text.isBlank()) {
+                    throw IllegalArgumentException("Archivo vacío")
+                }
+                text
+            } ?: throw IllegalStateException("No se pudo abrir el archivo")
+        }
+    }
+
+    private fun showImportBackupDialog(envelopeJson: String) {
+        activeDialog?.dismiss()
+        val dialogBinding = DialogBackupImportBinding.inflate(LayoutInflater.from(this))
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogBinding.root)
+            .create()
+        dialog.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+        activeDialog = dialog
+
+        dialogBinding.etImportBackupPassword.doAfterTextChanged {
+            dialogBinding.tilImportBackupPassword.error = null
+        }
+
+        dialogBinding.btnCancelImport.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnConfirmImport.setOnClickListener {
+            val remaining = viewModel.recordUserActivity()
+            scheduleRemainingTimeout(remaining)
+
+            val backupPassword = dialogBinding.etImportBackupPassword.text?.toString() ?: ""
+            if (backupPassword.isEmpty()) {
+                dialogBinding.tilImportBackupPassword.error = getString(R.string.error_password_empty)
+                return@setOnClickListener
+            }
+
+            dialogBinding.tilImportBackupPassword.error = null
+            dialogBinding.btnConfirmImport.isEnabled = false
+
+            viewModel.decryptBackupPreview(
+                envelopeJson = envelopeJson,
+                backupPassword = backupPassword.toCharArray()
+            ) { result ->
+                if (isFinishing || isDestroyed) return@decryptBackupPreview
+                dialogBinding.btnConfirmImport.isEnabled = true
+
+                result.fold(
+                    onSuccess = { preview ->
+                        dialog.dismiss()
+                        if (preview.isSameUser) {
+                            applyImportedKeysToCurrentUser(preview.payload.keys)
+                        } else {
+                            showCrossUserImportDialog(preview)
+                        }
+                    },
+                    onFailure = {
+                        dialogBinding.tilImportBackupPassword.error =
+                            getString(R.string.error_backup_decrypt_failed)
+                    }
+                )
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun applyImportedKeysToCurrentUser(incomingKeys: List<UserKey>) {
+        val activeUser = viewModel.currentUser.value
+        viewModel.importBackupKeysIntoCurrentUser(incomingKeys) { importResult ->
+            if (isFinishing || isDestroyed) return@importBackupKeysIntoCurrentUser
+            importResult.fold(
+                onSuccess = { summary ->
+                    Toast.makeText(
+                        this@DashboardActivity,
+                        getString(
+                            R.string.msg_backup_loaded_summary,
+                            activeUser,
+                            summary.importedCount,
+                            summary.skippedDuplicates
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                },
+                onFailure = { error ->
+                    Toast.makeText(
+                        this@DashboardActivity,
+                        error.localizedMessage ?: getString(R.string.error_backup_decrypt_failed),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            )
+        }
+    }
+
+    private fun showCrossUserImportDialog(preview: DashboardViewModel.BackupDecryptionPreview) {
+        val activeUser = viewModel.currentUser.value
+        val backupUser = preview.payload.user.username
+        val exportedDate = preview.payload.exportedAt.ifEmpty { getString(R.string.value_unknown) }
+
+        activeDialog?.dismiss()
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.dialog_backup_cross_user_title))
+            .setMessage(
+                getString(
+                    R.string.dialog_backup_cross_user_message,
+                    backupUser,
+                    preview.payload.keys.size,
+                    exportedDate,
+                    activeUser
+                )
+            )
+            .setPositiveButton(getString(R.string.btn_import_keys_here)) { _, _ ->
+                applyImportedKeysToCurrentUser(preview.payload.keys)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+
+        if (!preview.backupUserAlreadyExistsLocally) {
+            builder.setNeutralButton(getString(R.string.btn_restore_account_too, backupUser)) { _, _ ->
+                viewModel.restoreBackedUpAccount(preview.payload.user, preview.payload.keys) { result ->
+                    if (isFinishing || isDestroyed) return@restoreBackedUpAccount
+                    when (result) {
+                        is RestoreAccountResult.Restored -> {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(
+                                    R.string.msg_account_restored,
+                                    backupUser,
+                                    result.summary.importedCount,
+                                    result.summary.skippedDuplicates
+                                ),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        is RestoreAccountResult.UserAlreadyExists -> {
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                getString(R.string.error_restore_account_exists, backupUser),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        is RestoreAccountResult.Error -> {
+                            Toast.makeText(this@DashboardActivity, result.message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        activeDialog = builder.show()
     }
 
     private fun showSystemInfoDialog() {

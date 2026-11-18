@@ -47,3 +47,47 @@ sealed class StorageOpResult {
     object NotFound : StorageOpResult()
     data class Error(val cause: Throwable? = null, val message: String) : StorageOpResult()
 }
+
+/**
+ * Plaintext backup structure serialized inside the AES-256-GCM ciphertext payload.
+ * Never persisted unencrypted; contains the backed-up user credentials hash record and keys.
+ */
+@Serializable
+data class BackupPayload(
+    val schemaVersion: Int = 1,
+    val appVersion: String,
+    val exportedAt: String,
+    val user: User,
+    val keys: List<UserKey>
+)
+
+/**
+ * Encrypted backup envelope written to user-selected `.bbre` files.
+ */
+@Serializable
+data class EncryptedBackupEnvelope(
+    val format: String,
+    val cipher: String,
+    val kdf: String,
+    val kdfIterations: Int,
+    val saltBase64: String,
+    val ivBase64: String,
+    val ciphertextBase64: String
+)
+
+/**
+ * Summary of key import deduplication.
+ */
+data class KeyImportSummary(
+    val importedCount: Int,
+    val skippedDuplicates: Int
+)
+
+/**
+ * Outcome of restoring a backed-up account together with its keys.
+ */
+sealed class RestoreAccountResult {
+    data class Restored(val summary: KeyImportSummary) : RestoreAccountResult()
+    object UserAlreadyExists : RestoreAccountResult()
+    data class Error(val cause: Throwable? = null, val message: String) : RestoreAccountResult()
+}

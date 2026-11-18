@@ -137,4 +137,30 @@
     <string name="dialog_system_info_base">• Aplicación: BBre - NairuSoft\n• Desarrollado por: NairuSoft\n• Usuario activo: %1$s\n• Total de llaves: %2$d\n• Versión más reciente: %3$s</string>
     <string name="dialog_system_info_latest_key">\n\nÚltima llave registrada:\n• Nombre/Banco: %1$s\n• Creado por: %2$s\n• Fecha de creación: %3$s\n• Fecha de modificación: %4$s\n• Versión de llave: %5$s</string>
     <string name="dialog_system_info_no_keys">\n\n• Llaves registradas: 0</string>
+
+    <!-- Encrypted Backup (AES-256-GCM) -->
+    <string name="settings_backup_title">Respaldo Cifrado (AES-256)</string>
+    <string name="settings_backup_subtitle">Guarda o carga tu usuario, credencial y llaves protegidas con cifrado AES-256-GCM y clave derivada PBKDF2.</string>
+    <string name="btn_export_backup">Guardar información (AES-256)</string>
+    <string name="btn_import_backup">Cargar información (AES-256)</string>
+    <string name="dialog_backup_export_title">Guardar respaldo cifrado</string>
+    <string name="dialog_backup_export_desc">Confirma tu contraseña actual y define una clave de cifrado para proteger tu usuario y llaves con AES-256-GCM.</string>
+    <string name="hint_backup_password">Contraseña del respaldo (AES-256)</string>
+    <string name="hint_backup_password_confirm">Confirmar contraseña del respaldo</string>
+    <string name="error_backup_password_mismatch">Las contraseñas del respaldo no coinciden</string>
+    <string name="msg_backup_saved">Respaldo AES-256 guardado (%1$d llaves)</string>
+    <string name="error_backup_save_failed">No se pudo guardar el respaldo cifrado: %1$s</string>
+    <string name="dialog_backup_import_title">Cargar respaldo cifrado</string>
+    <string name="dialog_backup_import_desc">Ingresa la contraseña del archivo de respaldo para descifrar con AES-256-GCM sin eliminar tus llaves actuales.</string>
+    <string name="btn_decrypt_and_load">Descifrar y cargar</string>
+    <string name="error_backup_decrypt_failed">Contraseña incorrecta o archivo de respaldo inválido/dañado</string>
+    <string name="error_backup_file_read">No se pudo leer el archivo seleccionado</string>
+    <string name="error_backup_file_too_large">El archivo supera el tamaño máximo permitido (5 MB)</string>
+    <string name="msg_backup_loaded_summary">Respaldo cargado para %1$s: %2$d llave(s) nuevas, %3$d duplicada(s) omitidas</string>
+    <string name="dialog_backup_cross_user_title">Respaldo de otro usuario</string>
+    <string name="dialog_backup_cross_user_message">El respaldo descifrado pertenece al usuario \'%1$s\' (%2$d llaves, exportado el %3$s).\n\n¿Deseas cargar estas llaves en tu cuenta actual \'%4$s\'?</string>
+    <string name="btn_import_keys_here">Importar llaves aquí</string>
+    <string name="btn_restore_account_too">Restaurar cuenta \'%1$s\'</string>
+    <string name="msg_account_restored">Cuenta \'%1$s\' y %2$d llave(s) restauradas (%3$d omitidas)</string>
+    <string name="error_restore_account_exists">La cuenta \'%1$s\' ya existe en el dispositivo.</string>
 </resources>

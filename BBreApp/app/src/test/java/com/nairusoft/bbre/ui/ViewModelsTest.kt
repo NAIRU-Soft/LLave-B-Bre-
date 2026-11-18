@@ -3,7 +3,9 @@ package com.nairusoft.bbre.ui
 import com.nairusoft.bbre.data.AuthRepository
 import com.nairusoft.bbre.data.KeysRepository
 import com.nairusoft.bbre.data.SecureAuthGateway
+import com.nairusoft.bbre.model.KeyImportSummary
 import com.nairusoft.bbre.model.LoginEvent
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageOpResult
 import com.nairusoft.bbre.model.User
 import com.nairusoft.bbre.security.AuthValidator
@@ -161,6 +163,62 @@ class ViewModelsTest {
             assertEquals("", dashboardViewModel.currentUser.value)
             assertTrue(dashboardViewModel.keys.value.isEmpty())
             assertFalse(dashboardViewModel.isSessionValid())
+        }
+    }
+
+    @Test
+    fun dashboardViewModel_exportsDecryptsAndRestoresAes256Backup() = runBlocking {
+        withTimeout(10_000L) {
+            authRepository.register("elena", "ClaveElena1")
+            authRepository.login("elena", "ClaveElena1")
+            assertEquals("elena", dashboardViewModel.initializeActiveSession())
+
+            val saveRes = CompletableDeferred<StorageOpResult>()
+            dashboardViewModel.saveKey(null, "Bancolombia", "987654321", "Principal", "2026-11-17 12:00:00") {
+                saveRes.complete(it)
+            }
+            assertEquals(StorageOpResult.Success, saveRes.await())
+
+            val exportDeferred = CompletableDeferred<Result<DashboardViewModel.EncryptedExportBundle>>()
+            dashboardViewModel.exportEncryptedBackup(
+                backupPassword = "RespaldoElena1".toCharArray(),
+                appVersion = "0.0.1",
+                exportedAt = "2026-11-17 12:05:00"
+            ) {
+                exportDeferred.complete(it)
+            }
+            val bundle = exportDeferred.await().getOrThrow()
+            assertEquals(1, bundle.keyCount)
+
+            // Switch to another user and import decrypted keys without losing existing ones
+            authRepository.register("mateo", "ClaveMateo1")
+            authRepository.login("mateo", "ClaveMateo1")
+            assertEquals("mateo", dashboardViewModel.initializeActiveSession())
+
+            val previewDeferred = CompletableDeferred<Result<DashboardViewModel.BackupDecryptionPreview>>()
+            dashboardViewModel.decryptBackupPreview(bundle.encryptedJson, "RespaldoElena1".toCharArray()) {
+                previewDeferred.complete(it)
+            }
+            val preview = previewDeferred.await().getOrThrow()
+            assertEquals("elena", preview.payload.user.username)
+            assertFalse(preview.isSameUser)
+            assertTrue(preview.backupUserAlreadyExistsLocally)
+
+            val importDeferred = CompletableDeferred<Result<KeyImportSummary>>()
+            dashboardViewModel.importBackupKeysIntoCurrentUser(preview.payload.keys) {
+                importDeferred.complete(it)
+            }
+            val summary = importDeferred.await().getOrThrow()
+            assertEquals(1, summary.importedCount)
+            assertEquals(0, summary.skippedDuplicates)
+            assertEquals(1, dashboardViewModel.keys.value.size)
+            assertEquals("elena", dashboardViewModel.keys.value.first().createdBy)
+
+            val conflictDeferred = CompletableDeferred<RestoreAccountResult>()
+            dashboardViewModel.restoreBackedUpAccount(preview.payload.user, preview.payload.keys) {
+                conflictDeferred.complete(it)
+            }
+            assertTrue(conflictDeferred.await() is RestoreAccountResult.UserAlreadyExists)
         }
     }
 }

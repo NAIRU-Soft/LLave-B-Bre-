@@ -6,8 +6,11 @@ import com.nairusoft.bbre.model.BiometricBannerMode
 import com.nairusoft.bbre.model.BiometricUiStatus
 import com.nairusoft.bbre.model.ProfileUpdateOutcome
 import com.nairusoft.bbre.model.ReauthOutcome
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageLoadResult
 import com.nairusoft.bbre.model.StorageOpResult
+import com.nairusoft.bbre.model.User
+import com.nairusoft.bbre.model.UserKey
 import com.nairusoft.bbre.security.SecurityManager
 import com.nairusoft.bbre.security.SessionManager
 import com.nairusoft.bbre.security.StorageManager
@@ -200,5 +203,25 @@ class AuthRepository(
             is StorageOpResult.Error -> AccountDeleteOutcome.Error(result.message)
             is StorageOpResult.Duplicate -> AccountDeleteOutcome.NotFound
         }
+    }
+
+    suspend fun getUserRecord(username: String): StorageLoadResult<User?> {
+        return when (val load = storageManager.getUsersResult()) {
+            is StorageLoadResult.Success -> StorageLoadResult.Success(
+                load.data.find { it.username.equals(username, ignoreCase = true) }
+            )
+            is StorageLoadResult.Error -> load
+        }
+    }
+
+    suspend fun usernameExists(username: String): StorageLoadResult<Boolean> {
+        return when (val load = getUserRecord(username)) {
+            is StorageLoadResult.Success -> StorageLoadResult.Success(load.data != null)
+            is StorageLoadResult.Error -> load
+        }
+    }
+
+    suspend fun restoreAccountWithKeys(user: User, keys: List<UserKey>): RestoreAccountResult {
+        return storageManager.restoreAccountWithKeys(user, keys)
     }
 }

@@ -30,8 +30,11 @@ Todos los registros se almacenan localmente en almacenamiento privado de la app 
 - Prevención de llaves duplicadas por usuario (normalizando banco y valor de llave) y versionado semántico automático por parche en cada edición (`0.0.1` -> `0.0.2`).
 - Cuadro de **Información de Llave** con autor histórico (`createdBy`), banco, descripción, valor, fechas de creación/modificación y versión.
 
-### Configuración e Información del Sistema (`Configuración`)
+### Configuración, Respaldo Cifrado (AES-256) e Información del Sistema (`Configuración`)
 - Actualización de nombre de usuario y/o contraseña (preservando `createdBy` histórico en las llaves existentes).
+- **Respaldo Cifrado (AES-256-GCM)**:
+  - **Guardar información (AES-256)**: tras reautenticación con contraseña actual, exporta el registro del usuario (`User`) y sus llaves (`List<UserKey>`) cifrados con `AES/GCM/NoPadding` (clave de 256 bits derivada mediante `PBKDF2WithHmacSHA256`, 120.000 iteraciones, salt aleatorio de 16 bytes, IV aleatorio de 12 bytes y AAD autenticado) mediante Storage Access Framework (`.bbre`).
+  - **Cargar información (AES-256)**: descifra y autentica archivos `.bbre` validando etiqueta GCM/contraseña e importa las llaves sin eliminar las existentes (omitiendo duplicados y ofreciendo restaurar cuentas inexistentes cuando el usuario del respaldo difiere).
 - Diálogo de **Información del sistema** con resumen del usuario activo, cantidad de llaves, versión de la app (`BuildConfig.VERSION_NAME`) y última llave modificada.
 - Cierre manual de sesión con limpieza de estado en memoria y navegación limpia a Login.
 
@@ -62,6 +65,7 @@ BBreApp/
 │       │   │   │   └── SecureAuthGateway.kt
 │       │   │   ├── security/               # Criptografía, hashing, sesión, validación y almacenamiento
 │       │   │   │   ├── AuthValidator.kt
+│       │   │   │   ├── BackupCryptoManager.kt
 │       │   │   │   ├── KeyUtils.kt
 │       │   │   │   ├── PasswordHasher.kt
 │       │   │   │   ├── SecurityManager.kt

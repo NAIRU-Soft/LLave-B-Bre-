@@ -7,18 +7,26 @@ import androidx.lifecycle.viewModelScope
 import com.nairusoft.bbre.data.AuthRepository
 import com.nairusoft.bbre.data.KeysRepository
 import com.nairusoft.bbre.model.AccountDeleteOutcome
+import com.nairusoft.bbre.model.BackupPayload
+import com.nairusoft.bbre.model.KeyImportSummary
 import com.nairusoft.bbre.model.ProfileUpdateOutcome
 import com.nairusoft.bbre.model.ReauthOutcome
+import com.nairusoft.bbre.model.RestoreAccountResult
 import com.nairusoft.bbre.model.StorageLoadResult
 import com.nairusoft.bbre.model.StorageOpResult
+import com.nairusoft.bbre.model.User
 import com.nairusoft.bbre.model.UserKey
+import com.nairusoft.bbre.security.BackupCryptoManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Arrays
 
 /**
  * ViewModel for [DashboardActivity], holding reactive key state, session checks,
@@ -175,6 +183,136 @@ class DashboardViewModel(
                 keysRepository.clearKeys()
             }
             onResult(outcome)
+        }
+    }
+
+    data class EncryptedExportBundle(
+        val encryptedJson: String,
+        val keyCount: Int
+    )
+
+    data class BackupDecryptionPreview(
+        val payload: BackupPayload,
+        val isSameUser: Boolean,
+        val backupUserAlreadyExistsLocally: Boolean
+    )
+
+    fun exportEncryptedBackup(
+        backupPassword: CharArray,
+        appVersion: String,
+        exportedAt: String,
+        onResult: (Result<EncryptedExportBundle>) -> Unit
+    ) {
+        val username = _currentUser.value
+        activeScope.launch {
+            try {
+                if (username.isEmpty()) {
+                    onResult(Result.failure(IllegalStateException("Sesión no iniciada")))
+                    return@launch
+                }
+
+                val userRecord = when (val userLoad = authRepository.getUserRecord(username)) {
+                    is StorageLoadResult.Success -> userLoad.data
+                        ?: run {
+                            onResult(Result.failure(IllegalStateException("No se encontró el usuario actual")))
+                            return@launch
+                        }
+                    is StorageLoadResult.Error -> {
+                        onResult(Result.failure(userLoad.cause))
+                        return@launch
+                    }
+                }
+
+                val keysList = when (val keysLoad = keysRepository.getKeysSnapshot(username)) {
+                    is StorageLoadResult.Success -> keysLoad.data
+                    is StorageLoadResult.Error -> {
+                        onResult(Result.failure(keysLoad.cause))
+                        return@launch
+                    }
+                }
+
+                val payload = BackupPayload(
+                    schemaVersion = 1,
+                    appVersion = appVersion,
+                    exportedAt = exportedAt,
+                    user = userRecord,
+                    keys = keysList
+                )
+
+                val encryptedResult = withContext(Dispatchers.Default) {
+                    BackupCryptoManager.encryptToJson(payload, backupPassword)
+                }
+
+                onResult(encryptedResult.map { encrypted ->
+                    EncryptedExportBundle(encryptedJson = encrypted, keyCount = keysList.size)
+                })
+            } finally {
+                Arrays.fill(backupPassword, '\u0000')
+            }
+        }
+    }
+
+    fun decryptBackupPreview(
+        envelopeJson: String,
+        backupPassword: CharArray,
+        onResult: (Result<BackupDecryptionPreview>) -> Unit
+    ) {
+        val activeUsername = _currentUser.value
+        activeScope.launch {
+            try {
+                val payload = withContext(Dispatchers.Default) {
+                    BackupCryptoManager.decryptFromJson(envelopeJson, backupPassword)
+                }.getOrElse { error ->
+                    onResult(Result.failure(error))
+                    return@launch
+                }
+
+                val existsLocally = when (val existsLoad = authRepository.usernameExists(payload.user.username)) {
+                    is StorageLoadResult.Success -> existsLoad.data
+                    is StorageLoadResult.Error -> {
+                        onResult(Result.failure(existsLoad.cause))
+                        return@launch
+                    }
+                }
+
+                val sameUser = payload.user.username.equals(activeUsername, ignoreCase = true)
+                onResult(
+                    Result.success(
+                        BackupDecryptionPreview(
+                            payload = payload,
+                            isSameUser = sameUser,
+                            backupUserAlreadyExistsLocally = existsLocally
+                        )
+                    )
+                )
+            } finally {
+                Arrays.fill(backupPassword, '\u0000')
+            }
+        }
+    }
+
+    fun importBackupKeysIntoCurrentUser(
+        incomingKeys: List<UserKey>,
+        onResult: (Result<KeyImportSummary>) -> Unit
+    ) {
+        val username = _currentUser.value
+        activeScope.launch {
+            onResult(keysRepository.importKeys(username, incomingKeys))
+        }
+    }
+
+    fun restoreBackedUpAccount(
+        user: User,
+        incomingKeys: List<UserKey>,
+        onResult: (RestoreAccountResult) -> Unit
+    ) {
+        val username = _currentUser.value
+        activeScope.launch {
+            val result = authRepository.restoreAccountWithKeys(user, incomingKeys)
+            if (result is RestoreAccountResult.Restored && user.username.equals(username, ignoreCase = true)) {
+                keysRepository.loadKeys(username)
+            }
+            onResult(result)
         }
     }
 }

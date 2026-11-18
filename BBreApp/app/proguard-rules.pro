@@ -13,7 +13,14 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Keep @Serializable data models (User, UserKey) and generated serializers
+# Keep @Serializable data models (User, UserKey, BackupPayload, EncryptedBackupEnvelope) and generated serializers
+-keep,includedescriptorclasses class com.nairusoft.bbre.model.**$$serializer { *; }
+-keepclassmembers class com.nairusoft.bbre.model.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.nairusoft.bbre.model.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 -keep,includedescriptorclasses class com.nairusoft.bbre.security.**$$serializer { *; }
 -keepclassmembers class com.nairusoft.bbre.security.** {
     *** Companion;

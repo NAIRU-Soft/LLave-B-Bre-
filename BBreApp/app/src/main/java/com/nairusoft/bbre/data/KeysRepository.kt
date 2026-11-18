@@ -1,6 +1,7 @@
 package com.nairusoft.bbre.data
 
 import android.content.Context
+import com.nairusoft.bbre.model.KeyImportSummary
 import com.nairusoft.bbre.model.StorageLoadResult
 import com.nairusoft.bbre.model.StorageOpResult
 import com.nairusoft.bbre.model.UserKey
@@ -100,5 +101,17 @@ class KeysRepository(
 
     fun clearKeys() {
         _keys.value = emptyList()
+    }
+
+    suspend fun getKeysSnapshot(username: String): StorageLoadResult<List<UserKey>> {
+        return storageManager.getKeysForUserResult(username)
+    }
+
+    suspend fun importKeys(targetUsername: String, incomingKeys: List<UserKey>): Result<KeyImportSummary> {
+        val importResult = storageManager.importKeysForUser(targetUsername, incomingKeys)
+        if (importResult.isSuccess) {
+            loadKeys(targetUsername)
+        }
+        return importResult
     }
 }
