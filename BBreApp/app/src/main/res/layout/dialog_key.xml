@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="20dp"
-    android:background="@color/background_primary">
+    android:background="?attr/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,7 +16,7 @@
             android:id="@+id/tvDialogTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Agregar Nueva Llave"
+            android:text="@string/dialog_add_key_title"
             android:textColor="@color/bbre_primary"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -26,20 +26,36 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Selecciona el Banco"
+            android:text="@string/label_select_bank"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <!-- Key Type Spinner/Selector -->
-        <Spinner
-            android:id="@+id/spinnerKeyType"
+        <!-- Key Type Exposed Dropdown (Material 3) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilKeyType"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:background="@drawable/security_badge_background"
-            android:layout_marginBottom="12dp"
-            android:padding="8dp" />
+            android:layout_height="wrap_content"
+            android:hint="@string/hint_bank"
+            app:boxStrokeColor="@color/bbre_primary"
+            app:hintTextColor="@color/bbre_primary"
+            app:boxBackgroundColor="@color/surface"
+            app:boxCornerRadiusTopStart="10dp"
+            app:boxCornerRadiusTopEnd="10dp"
+            app:boxCornerRadiusBottomStart="10dp"
+            app:boxCornerRadiusBottomEnd="10dp"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/actvKeyType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:textColor="@color/text_primary" />
+
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Custom Bank Input Field (Hidden by default, shown if + Agregar nuevo banco is selected) -->
         <com.google.android.material.textfield.TextInputLayout
@@ -47,7 +63,7 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Escribe el nombre del nuevo banco"
+            android:hint="@string/hint_custom_bank"
             android:layout_marginBottom="16dp"
             android:visibility="gone">
 
@@ -55,7 +71,7 @@
                 android:id="@+id/etCustomBank"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="textCapWords" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -64,7 +80,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Descripción"
+            android:text="@string/label_description"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -75,14 +91,14 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Escribe una descripción"
+            android:hint="@string/hint_description"
             android:layout_marginBottom="16dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="textCapSentences" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -91,7 +107,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Valor de la Llave"
+            android:text="@string/label_key_value"
             android:textColor="@color/bbre_primary"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -102,17 +118,29 @@
             style="@style/Widget.BBreApp.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Ej. celular, cédula, correo o código"
-            android:layout_marginBottom="24dp">
+            android:hint="@string/hint_key_value"
+            android:layout_marginBottom="8dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etKeyValue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGenerateKey"
+            style="@style/Widget.BBreApp.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/btn_generate_random_code"
+            android:textSize="13sp"
+            app:icon="@drawable/ic_autorenew"
+            app:iconGravity="textStart"
+            android:layout_marginBottom="20dp" />
 
         <!-- Buttons -->
         <LinearLayout
@@ -126,8 +154,7 @@
                 style="@style/Widget.BBreApp.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Cancelar"
-                android:textColor="@color/bbre_primary"
+                android:text="@string/btn_cancel"
                 android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton
@@ -135,7 +162,7 @@
                 style="@style/Widget.BBreApp.Button.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Guardar" />
+                android:text="@string/btn_save" />
 
         </LinearLayout>
 

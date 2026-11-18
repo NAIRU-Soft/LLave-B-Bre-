@@ -1,11 +1,10 @@
 package com.nairusoft.bbre.ui
 
+import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.nairusoft.bbre.R
 import com.nairusoft.bbre.databinding.ActivitySplashBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -26,6 +25,13 @@ class SplashActivity : AppCompatActivity() {
 
         // Hide action bar
         supportActionBar?.hide()
+
+        // Prevent back navigation while splash is visible
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Intentionally ignore back press on splash screen
+            }
+        })
 
         // Initialize UI
         setupUI()
@@ -60,22 +66,12 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToLogin() {
-        Handler(Looper.getMainLooper()).postDelayed({
-            lifecycleScope.launch {
-                // Simulate security initialization
-                delay(splashTimeOut)
-                
-                // Navigate to Login Activity
-                startActivity(android.content.Intent(this@SplashActivity, LoginActivity::class.java))
-                finish()
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-            }
-        }, splashTimeOut)
-    }
+        lifecycleScope.launch {
+            delay(splashTimeOut)
 
-    override fun onBackPressed() {
-        // Prevent back navigation from splash screen
-        // Do nothing or show exit confirmation
-        super.onBackPressed()
+            startActivity(Intent(this@SplashActivity, LoginActivity::class.java))
+            finish()
+            applyFadeCloseTransition()
+        }
     }
 }

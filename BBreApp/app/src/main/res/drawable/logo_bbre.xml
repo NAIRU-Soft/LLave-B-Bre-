@@ -4,20 +4,35 @@
     android:height="80dp"
     android:viewportWidth="200"
     android:viewportHeight="80">
-    
-    <!-- BBre Logo Text -->
-    <group android:translateX="20" android:translateY="20">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M0,0 L25,0 L25,10 L10,10 L10,40 L0,40 Z" />
-        <path
-            android:fillColor="#FFD700"
-            android:pathData="M30,0 L55,0 C65,0 70,5 70,15 C70,22 66,27 58,29 L72,40 L58,40 L48,30 L40,30 L40,40 L30,40 Z M40,10 L40,20 L55,20 C60,20 62,18 62,15 C62,12 60,10 55,10 Z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M80,0 L90,0 L90,30 L110,30 L110,40 L80,40 Z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M120,0 L145,0 L145,10 L130,10 L130,15 L142,15 L142,25 L130,25 L130,30 L145,30 L145,40 L120,40 Z" />
-    </group>
+
+    <!-- Emblem card background for contrast on both light and dark surfaces -->
+    <path
+        android:fillColor="#003366"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.5"
+        android:pathData="M14,8 H186 A10,10 0 0 1 196,18 V62 A10,10 0 0 1 186,72 H14 A10,10 0 0 1 4,62 V18 A10,10 0 0 1 14,8 Z" />
+
+    <!-- Letter B (White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M28,20 H48 C55,20 59,23.5 59,29.5 C59,34 56.5,37 52.5,38.5 C57.5,40 60,43.5 60,49 C60,56 55,60 47,60 H28 Z M37,26.5 V35.5 H46.5 C49.5,35.5 51,34 51,31 C51,28 49.5,26.5 46.5,26.5 Z M37,42.5 V53.5 H47.5 C50.5,53.5 52,51.8 52,48 C52,44.2 50.5,42.5 47.5,42.5 Z" />
+
+    <!-- Letter B (Gold Accent) -->
+    <path
+        android:fillColor="#FFD700"
+        android:fillType="evenOdd"
+        android:pathData="M68,20 H88 C95,20 99,23.5 99,29.5 C99,34 96.5,37 92.5,38.5 C97.5,40 100,43.5 100,49 C100,56 95,60 87,60 H68 Z M77,26.5 V35.5 H86.5 C89.5,35.5 91,34 91,31 C91,28 89.5,26.5 86.5,26.5 Z M77,42.5 V53.5 H87.5 C90.5,53.5 92,51.8 92,48 C92,44.2 90.5,42.5 87.5,42.5 Z" />
+
+    <!-- Letter r (White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M110,31 H118 V35.5 C120,32 123.5,30.5 128,30.5 C129.5,30.5 131,30.8 132,31.3 V39 C130.5,38.4 129,38.1 127,38.1 C122,38.1 119,41.2 119,47 V60 H110 Z" />
+
+    <!-- Letter e (White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M154,30.5 C163.5,30.5 170,37 170,45.8 C170,46.8 169.9,47.8 169.7,48.6 H146.5 C147.2,52 150,54 154.5,54 C157.8,54 160.2,52.8 162,51 L167.5,55.5 C164.3,58.8 159.8,60.5 154,60.5 C144.2,60.5 138,54.2 138,45.5 C138,36.8 144.2,30.5 154,30.5 Z M146.8,42.8 H161.5 C160.8,39 158,36.8 154.2,36.8 C150.2,36.8 147.6,39 146.8,42.8 Z" />
+
 </vector>

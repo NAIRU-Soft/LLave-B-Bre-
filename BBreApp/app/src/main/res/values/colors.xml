@@ -1,28 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Colors - BBre Brand -->
+    <!-- BBre Brand -->
+    <color name="bbre_brand_navy">#003366</color>
+    <color name="bbre_brand_navy_dark">#002244</color>
     <color name="bbre_primary">#003366</color>
     <color name="bbre_primary_dark">#002244</color>
     <color name="bbre_accent">#FFD700</color>
-    <color name="bbre_accent_variant">#FFC107</color>
-    
+
     <!-- NairuSoft Brand -->
     <color name="nairusoft_primary">#1976D2</color>
     <color name="nairusoft_secondary">#42A5F5</color>
-    
-    <!-- Common -->
+
+    <!-- Semantic Light Palette -->
+    <color name="background_primary">#F4F7FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#E8EEF5</color>
+    <color name="text_primary">#111827</color>
+    <color name="text_secondary">#4B5563</color>
+    <color name="outline_subtle">#CBD5E1</color>
+    <color name="toolbar_background">#003366</color>
+    <color name="bottom_nav_background">#FFFFFF</color>
+    <color name="nav_inactive">#64748B</color>
+    <color name="button_primary_bg">#003366</color>
+    <color name="button_primary_text">#FFFFFF</color>
+    <color name="key_icon_bg">#E6EEF8</color>
+
+    <!-- Common & Status -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="gray_light">#F5F5F5</color>
-    <color name="gray">#9E9E9E</color>
-    <color name="gray_dark">#424242</color>
-    <color name="green_success">#4CAF50</color>
-    <color name="red_error">#F44336</color>
-    
-    <!-- Background -->
-    <color name="background_primary">#FAFAFA</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="error">#B00020</color>
-    <color name="orange_warning">#FF9800</color>
+    <color name="gray_light">#E5E7EB</color>
+    <color name="gray">#6B7280</color>
+    <color name="gray_dark">#374151</color>
+    <color name="green_success">#2E7D32</color>
+    <color name="red_error">#D32F2F</color>
+    <color name="orange_warning">#ED6C02</color>
 </resources>
-
